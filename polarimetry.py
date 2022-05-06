@@ -29,6 +29,11 @@ def PropagateThroughMuellerSystem(sarray,Msys):
 def StokesAnalyzer(analyzervector,stokes):
     return np.dot(analyzervector,stokes)
 
+def NoisyStokesAnalyzer(analyzervector,stokes):
+
+    # Poisson Distribution
+    return np.dot(analyzervector,stokes) + np.random.poisson(lam=1)*1e-2
+
 def DualTetrahedronPolarizations():
 
     v1 = np.array([1,1,0,-1/np.sqrt(2)])
@@ -71,7 +76,9 @@ def FullStokesPolarimeterMeasurement(Sin,nmeas):
         analyzer = M[0,0:4]
 
         # Record the power
-        Pmat[i] = np.dot(analyzer,Sin)
+        Pmat[i] = NoisyStokesAnalyzer(analyzer,Sin)
+
+        # Optionally, add some photon noise
 
 
     popt,pcov = curve_fit(StokesSinusoid,
@@ -115,7 +122,7 @@ def FullStokesPolarimeter(Sarray,nmeas):
 
     return Sout
 
-def PlotStokesArray(Sarray):
+def PlotStokesArray(Sarray,Sin=None):
 
     dim = Sarray.shape[0]
 
@@ -129,24 +136,52 @@ def PlotStokesArray(Sarray):
     plt.subplot(141)
     plt.title('S0')
     plt.imshow(Sarray[:,:,0],vmin=vmin,vmax=vmax)
-    plt.colorbar()
+    plt.colorbar(fraction=0.046, pad=0.04)
 
     plt.subplot(142)
     plt.title('S1')
     plt.imshow(Sarray[:,:,1],vmin=vmin,vmax=vmax)
-    plt.colorbar()
+    plt.colorbar(fraction=0.046, pad=0.04)
 
     plt.subplot(143)
     plt.title('S2')
     plt.imshow(Sarray[:,:,2],vmin=vmin,vmax=vmax)
-    plt.colorbar()
+    plt.colorbar(fraction=0.046, pad=0.04)
 
     plt.subplot(144)
     plt.title('S3')
     plt.imshow(Sarray[:,:,3],vmin=vmin,vmax=vmax)
-    plt.colorbar()
+    plt.colorbar(fraction=0.046, pad=0.04)
     plt.tight_layout()
     plt.show()
+
+    if type(Sin) == np.ndarray:
+
+        vmin = -1e-1
+        vmax = 1e-1
+
+        plt.figure(figsize=[20,5])
+        plt.subplot(141)
+        plt.title('S0')
+        plt.imshow(Sarray[:,:,0]-Sin[:,:,0],vmin=vmin,vmax=vmax)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(142)
+        plt.title('S1')
+        plt.imshow(Sarray[:,:,1]-Sin[:,:,1],vmin=vmin,vmax=vmax)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(143)
+        plt.title('S2')
+        plt.imshow(Sarray[:,:,2]-Sin[:,:,2],vmin=vmin,vmax=vmax)
+        plt.colorbar(fraction=0.046, pad=0.04)
+
+        plt.subplot(144)
+        plt.title('S3')
+        plt.imshow(Sarray[:,:,3]-Sin[:,:,3],vmin=vmin,vmax=vmax)
+        plt.colorbar(fraction=0.046, pad=0.04)
+        plt.tight_layout()
+        plt.show()
 
 def AddNoise(fluxmap):
     return

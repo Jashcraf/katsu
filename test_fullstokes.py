@@ -13,4 +13,4 @@ print(Sout)
 Sin_array = GenerateStokesArray(Sin,51)
 Sout_array = FullStokesPolarimeter(Sin_array,11)
 
-PlotStokesArray(Sout_array)
+PlotStokesArray(Sout_array,Sin=Sin_array)
