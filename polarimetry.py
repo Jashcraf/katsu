@@ -31,8 +31,8 @@ def StokesAnalyzer(analyzervector,stokes):
 
 def NoisyStokesAnalyzer(analyzervector,stokes):
 
-    # Poisson Distribution
-    return np.dot(analyzervector,stokes) + np.random.poisson(lam=1)*1e-2
+    # Poisson Distribution noise?
+    return np.dot(analyzervector,stokes) # + np.random.poisson(lam=1)*1e-2
 
 def DualTetrahedronPolarizations():
 
@@ -133,6 +133,7 @@ def PlotStokesArray(Sarray,Sin=None):
     vmax = 1
 
     plt.figure(figsize=[20,5])
+    plt.suptitle('Recovered Stokes Image')
     plt.subplot(141)
     plt.title('S0')
     plt.imshow(Sarray[:,:,0],vmin=vmin,vmax=vmax)
@@ -161,6 +162,7 @@ def PlotStokesArray(Sarray,Sin=None):
         vmax = 1e-1
 
         plt.figure(figsize=[20,5])
+        plt.suptitle('Difference from Nominal State')
         plt.subplot(141)
         plt.title('S0')
         plt.imshow(Sarray[:,:,0]-Sin[:,:,0],vmin=vmin,vmax=vmax)
