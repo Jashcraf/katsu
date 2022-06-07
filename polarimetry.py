@@ -32,7 +32,7 @@ def StokesAnalyzer(analyzervector,stokes):
 def NoisyStokesAnalyzer(analyzervector,stokes):
 
     # Poisson Distribution noise?
-    return np.dot(analyzervector,stokes) # + np.random.poisson(lam=1)*1e-2
+    return np.dot(analyzervector,stokes) + np.random.poisson(lam=1)*1e-2
 
 def DualTetrahedronPolarizations():
 
