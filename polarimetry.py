@@ -90,24 +90,31 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas):
     wcount = 0
     th = np.linspace(0,2*np.pi,nmeas)
 
+    # Quinn's Offsets
+    thg = 0# -17.02*np.pi/180
+    tha = 0 #13.41*np.pi/180
+    thlp = 0# -0.53*np.pi/180
+
     for i in range(nmeas):
 
         # Mueller Matrix of Generator
-        Mg = mul.LinearRetarder(th[i] + 0,np.pi/2) @ mul.LinearPolarizer(0)
+        Mg = mul.LinearRetarder(th[i] + thg,np.pi/2) @ mul.LinearPolarizer(0)
 
         # Mueller Matrix of Analyzer
-        Ma = mul.LinearPolarizer(0) @ mul.LinearRetarder(th[i]*4.91 + 0,np.pi/2)
+        Ma = mul.LinearPolarizer(thlp) @ mul.LinearRetarder(th[i]*5 + tha,np.pi/2)
 
         # Mueller Matrix of System and Generator
         # A detector measures the first row of the analyzer matrix
-
         Wmat[:,i] = np.kron(Ma[0,:],Mg[:,0])
-        Pmat[:] = Ma[0,:] @ Min @ Mg[:,0]
+        # print('Analyzer = ',Ma[0,:])
+        # print('Generator = ',Mg[0,:])
+        Pmat[i] = Ma[0,:] @ Min @ Mg[:,0]
 
     popt,pcov = curve_fit(MuellerSinusoid,
                           th,
-                          Pmat,
-                          p0 = (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1))
+                          Pmat)
+
+    Malt = Pmat @ np.linalg.pinv(Wmat)
 
     # The even coefficients
     a0 = popt[0]
@@ -133,6 +140,18 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas):
     b10 = popt[18]
     b11 = popt[19]
     b12 = popt[20]
+
+    sineval = MuellerSinusoid(th,a0,a2,a3,a4,a6,a7,a8,a9,a10,a11,a12,b1,b2,b3,b5,b7,b8,b9,b10,b11,b12)
+    print('Sinusoid Shape')
+    print(sineval.shape)
+
+    plt.figure()
+    plt.title('Irradiance Measurements')
+    plt.plot(th,sineval,label='sinusoid fit',linestyle='dashdot')
+    plt.plot(th,Pmat,label='Power measurement')
+    plt.legend()
+    plt.xlabel('Measurement')
+    plt.show()
 
     # The Mueller Matrix Elements
     m44 = a6-a4
@@ -160,7 +179,7 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas):
                   [m31,m32,m33,m34],
                   [m41,m42,m43,m44]])
 
-    return M
+    return M,Malt
 
 def FullStokesPolarimeterMeasurement(Sin,nmeas):
 
