@@ -53,15 +53,124 @@ def DualTetrahedronPolarizations():
 def StokesSinusoid(nmeas,a0,b2,a4,b4):
     return a0 + b2*np.sin(2*nmeas) + a4*np.cos(4*nmeas) + b4*np.sin(4*nmeas)
 
+def MuellerSinusoid(nmeas,
+                    a0,a2,a3,a4,a6,a7,a8,a9,a10,a11,a12,
+                    b1,b2,b3,b5,b7,b8,b9,b10,b11,b12):
+
+    signal = a0
+    signal += a2*np.cos(2*nmeas)
+    signal += a3*np.cos(3*nmeas)
+    signal += a4*np.cos(4*nmeas)
+    signal += a6*np.cos(6*nmeas)
+    signal += a7*np.cos(7*nmeas)
+    signal += a8*np.cos(8*nmeas)
+    signal += a9*np.cos(9*nmeas)
+    signal += a10*np.cos(10*nmeas)
+    signal += a11*np.cos(11*nmeas)
+    signal += a12*np.cos(12*nmeas)
+
+    signal += b1*np.sin(1*nmeas)
+    signal += b2*np.sin(2*nmeas)
+    signal += b3*np.sin(3*nmeas)
+    signal += b5*np.sin(5*nmeas)
+    signal += b7*np.sin(7*nmeas)
+    signal += b8*np.sin(8*nmeas)
+    signal += b9*np.sin(9*nmeas)
+    signal += b10*np.sin(10*nmeas)
+    signal += b11*np.sin(11*nmeas)
+    signal += b12*np.sin(12*nmeas)
+
+    return signal
+
+def FullMuellerPolarimeterMeasurement(Min,nmeas):
+
+    from scipy.optimize import curve_fit
+    Wmat = np.zeros([16,nmeas])
+    Pmat = np.zeros([nmeas])
+    wcount = 0
+    th = np.linspace(0,2*np.pi,nmeas)
+
+    for i in range(nmeas):
+
+        # Mueller Matrix of Generator
+        Mg = mul.LinearRetarder(th[i] + 0,np.pi/2) @ mul.LinearPolarizer(0)
+
+        # Mueller Matrix of Analyzer
+        Ma = mul.LinearPolarizer(0) @ mul.LinearRetarder(th[i]*4.91 + 0,np.pi/2)
+
+        # Mueller Matrix of System and Generator
+        # A detector measures the first row of the analyzer matrix
+
+        Wmat[:,i] = np.kron(Ma[0,:],Mg[:,0])
+        Pmat[:] = Ma[0,:] @ Min @ Mg[:,0]
+
+    popt,pcov = curve_fit(MuellerSinusoid,
+                          th,
+                          Pmat,
+                          p0 = (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1))
+
+    # The even coefficients
+    a0 = popt[0]
+    a2 = popt[1]
+    a3 = popt[2]
+    a4 = popt[3]
+    a6 = popt[4]
+    a7 = popt[5]
+    a8 = popt[6]
+    a9 = popt[7]
+    a10 = popt[8]
+    a11 = popt[9]
+    a12 = popt[10]
+
+    # The odd coefficients
+    b1 = popt[11]
+    b2 = popt[12]
+    b3 = popt[13]
+    b5 = popt[14]
+    b7 = popt[15]
+    b8 = popt[16]
+    b9 = popt[17]
+    b10 = popt[18]
+    b11 = popt[19]
+    b12 = popt[20]
+
+    # The Mueller Matrix Elements
+    m44 = a6-a4
+    m43 = 2*(a7-a3)
+    m42 = -2*(b3+b7)
+    m41 = -(b5 + m42/2)
+    
+    m34 = 2*(a9-a11)
+    m33 = 4*(a8-a12)
+    m32 = 4*(b8+b12)
+    m31 = 2*b10 - m32/2
+
+    m24 = 2*(b11-b9)
+    m23 = 4*(-b8 + b12)
+    m22 = 4*(a8+a12)
+    m21 = 2*a10 - m22/2
+
+    m14 = b1 - m24/2
+    m13 = 2*b2 - m23/2
+    m12 = 2*a2 - m22/2
+    m11 = a0 - m12/2 - m21/2 - m22/4
+
+    M = np.array([[m11,m12,m13,m14],
+                  [m21,m22,m23,m24],
+                  [m31,m32,m33,m34],
+                  [m41,m42,m43,m44]])
+
+    return M
+
 def FullStokesPolarimeterMeasurement(Sin,nmeas):
 
     from scipy.optimize import curve_fit
     import matplotlib.pyplot as plt
     
     # This is a rotating retarder mueller matrix
-    Wmat = np.zeros([4,nmeas])
+    # Wmat = np.zeros([4,nmeas])
     Pmat = np.zeros([nmeas])
-    wcount = 0
+    # wcount = 0
 
     # Retarder needs to rotate 2pi, break up by nmeas
     th = np.linspace(0,2*np.pi,nmeas)

@@ -10,10 +10,10 @@ def Distance(d):
     return np.array([[1,d],
                      [0,1]])
 
-dep = 100
+dep = -50
 dxp = 100
-f1 = 200
-f2 = -75
+f1 = -50
+f2 = 200
 d1 = 165.2
 
 system =  Lens(f2) @ Distance(d1) @ Lens(f1) @ Distance(dep)
