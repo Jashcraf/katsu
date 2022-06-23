@@ -88,7 +88,7 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas):
     Wmat = np.zeros([16,nmeas])
     Pmat = np.zeros([nmeas])
     wcount = 0
-    th = np.linspace(0,2*np.pi,nmeas)
+    th = np.linspace(0,np.pi,nmeas)
 
     # Quinn's Offsets
     thg = 0# -17.02*np.pi/180
