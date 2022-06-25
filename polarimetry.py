@@ -1,3 +1,4 @@
+from socket import NI_NUMERICSERV
 import numpy as np
 import polutils as pol
 import mueller as mul
@@ -13,6 +14,60 @@ def GenerateStokesArray(svector,npix):
     polarray[:,:,3] = svector[3]
 
     return polarray
+
+def fourier_series_coeff_numpy(f, T, N, return_complex=False):
+    """Calculates the first 2*N+1 Fourier series coeff. of a periodic function.
+
+    https://stackoverflow.com/questions/4258106/how-to-calculate-a-fourier-series-in-numpy
+
+    Given a periodic, function f(t) with period T, this function returns the
+    coefficients a0, {a1,a2,...},{b1,b2,...} such that:
+
+    f(t) ~= a0/2+ sum_{k=1}^{N} ( a_k*cos(2*pi*k*t/T) + b_k*sin(2*pi*k*t/T) )
+
+    If return_complex is set to True, it returns instead the coefficients
+    {c0,c1,c2,...}
+    such that:
+
+    f(t) ~= sum_{k=-N}^{N} c_k * exp(i*2*pi*k*t/T)
+
+    where we define c_{-n} = complex_conjugate(c_{n})
+
+    Refer to wikipedia for the relation between the real-valued and complex
+    valued coeffs at http://en.wikipedia.org/wiki/Fourier_series.
+
+    Parameters
+    ----------
+    f : the periodic function, a callable like f(t)
+    T : the period of the function f, so that f(0)==f(T)
+    N_max : the function will return the first N_max + 1 Fourier coeff.
+
+    Returns
+    -------
+    if return_complex == False, the function returns:
+
+    a0 : float
+    a,b : numpy float arrays describing respectively the cosine and sine coeff.
+
+    if return_complex == True, the function returns:
+
+    c : numpy 1-dimensional complex-valued array of size N+1
+
+    """
+    # From Shanon theoreom we must use a sampling freq. larger than the maximum
+    # frequency you want to catch in the signal.
+    f_sample = 2 * N
+    # we also need to use an integer sampling frequency, or the
+    # points will not be equispaced between 0 and 1. We then add +2 to f_sample
+    t, dt = np.linspace(0, T, f_sample + 2, endpoint=False, retstep=True)
+
+    y = np.fft.rfft(f) / t.size
+
+    if return_complex:
+        return y
+    else:
+        y *= 2
+        return y[0].real, y[1:-1].real, -y[1:-1].imag
 
 def GenerateMuellerMatrixArray(mueller,npix):
     """
@@ -84,102 +139,209 @@ def MuellerSinusoid(nmeas,
 
 def FullMuellerPolarimeterMeasurement(Min,nmeas):
 
-    from scipy.optimize import curve_fit
-    Wmat = np.zeros([16,nmeas])
+    from numpy.linalg import inv
+    from numpy import transpose
+
+    Wmat = np.zeros([nmeas,16])
     Pmat = np.zeros([nmeas])
-    wcount = 0
     th = np.linspace(0,np.pi,nmeas)
 
+    for i in range(nmeas):
+
+        # Mueller Matrix of Generator using a QWR
+        Mg = mul.LinearRetarder(th[i],np.pi/2) @ mul.LinearPolarizer(0)
+
+        # Mueller Matrix of Analyzer using a QWR
+        Ma = mul.LinearPolarizer(0) @ mul.LinearRetarder(th[i]*5,np.pi/2)
+
+        ## Mueller Matrix of System and Generator
+        # The Data Reduction Matrix
+        Wmat[i,:] = np.kron(Ma[0,:],Mg[:,0])
+
+        # A detector measures the first row of the analyzer matrix and first column of the generator matrix
+        Pmat[i] = Ma[0,:] @ Min @ Mg[:,0]
+
+    # Compute Mueller Matrix with Moore-Penrose Pseudo Inverse
+    # Calculation appears to be sensitive to the method used to compute the inverse! There's something I guess
+    M = np.linalg.pinv(Wmat) @ Pmat
+
+
+    return M
+
+def _FullMuellerPolarimeterMeasurement(Min,nmeas,test_coeffs=False):
+
+    # from scipy.sparse import kron
+
+    # from scipy.optimize import curve_fit
+    Wmat = np.zeros([nmeas,16])
+    Pmat = np.zeros([nmeas])
+    # print(Pmat)
+    wcount = 0
+    th = np.linspace(0,np.pi,nmeas)
+    # print(th)
+
     # Quinn's Offsets
-    thg = 0# -17.02*np.pi/180
-    tha = 0 #13.41*np.pi/180
-    thlp = 0# -0.53*np.pi/180
+    thg = 0  # -17.02*np.pi/180
+    tha = 0  #13.41*np.pi/180
+    thlp = 0 # -0.53*np.pi/180
 
     for i in range(nmeas):
 
         # Mueller Matrix of Generator
-        Mg = mul.LinearRetarder(th[i] + thg,np.pi/2) @ mul.LinearPolarizer(0)
+        Mg = mul.LinearRetarder(th[i],np.pi/2) @ mul.LinearPolarizer(0)
+        # Mg /= Mg[0,0]
 
         # Mueller Matrix of Analyzer
-        Ma = mul.LinearPolarizer(thlp) @ mul.LinearRetarder(th[i]*5 + tha,np.pi/2)
+        Ma = mul.LinearPolarizer(0) @ mul.LinearRetarder(th[i]*5,np.pi/2)
+        # Ma /= Ma[0,0]
 
         # Mueller Matrix of System and Generator
         # A detector measures the first row of the analyzer matrix
-        Wmat[:,i] = np.kron(Ma[0,:],Mg[:,0])
+        # print(Mg[:,0])
+        Wmat[i,:] = np.kron(Ma[0,:],Mg[:,0])
+
         # print('Analyzer = ',Ma[0,:])
         # print('Generator = ',Mg[0,:])
+        # print('generator vector shpae ',Mg[:,0].shape)
+        # print('analyzer vector shpae ',Ma[0,:].shape)
+        # print('Mueller shape = ',Min.shape)
+        # print('an * M * gn shape = ',(Ma[0,:] @ Min @ Mg[:,0]).shape)
+        
         Pmat[i] = Ma[0,:] @ Min @ Mg[:,0]
 
-    popt,pcov = curve_fit(MuellerSinusoid,
-                          th,
-                          Pmat)
-
-    Malt = Pmat @ np.linalg.pinv(Wmat)
-
-    # The even coefficients
-    a0 = popt[0]
-    a2 = popt[1]
-    a3 = popt[2]
-    a4 = popt[3]
-    a6 = popt[4]
-    a7 = popt[5]
-    a8 = popt[6]
-    a9 = popt[7]
-    a10 = popt[8]
-    a11 = popt[9]
-    a12 = popt[10]
-
-    # The odd coefficients
-    b1 = popt[11]
-    b2 = popt[12]
-    b3 = popt[13]
-    b5 = popt[14]
-    b7 = popt[15]
-    b8 = popt[16]
-    b9 = popt[17]
-    b10 = popt[18]
-    b11 = popt[19]
-    b12 = popt[20]
-
-    sineval = MuellerSinusoid(th,a0,a2,a3,a4,a6,a7,a8,a9,a10,a11,a12,b1,b2,b3,b5,b7,b8,b9,b10,b11,b12)
-    print('Sinusoid Shape')
-    print(sineval.shape)
-
-    plt.figure()
-    plt.title('Irradiance Measurements')
-    plt.plot(th,sineval,label='sinusoid fit',linestyle='dashdot')
-    plt.plot(th,Pmat,label='Power measurement')
-    plt.legend()
-    plt.xlabel('Measurement')
-    plt.show()
-
-    # The Mueller Matrix Elements
-    m44 = a6-a4
-    m43 = 2*(a7-a3)
-    m42 = -2*(b3+b7)
-    m41 = -(b5 + m42/2)
+        # print(Pmat)
+    # popt,pcov = curve_fit(MuellerSinusoid,
+    #                       th,
+    #                       Pmat,
+    #                       p0 = (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1))
     
-    m34 = 2*(a9-a11)
-    m33 = 4*(a8-a12)
-    m32 = 4*(b8+b12)
-    m31 = 2*b10 - m32/2
+    # Try computing the fourier transform
 
-    m24 = 2*(b11-b9)
-    m23 = 4*(-b8 + b12)
-    m22 = 4*(a8+a12)
-    m21 = 2*a10 - m22/2
+    # a0,a,b = fourier_series_coeff_numpy(Pmat,np.pi,12)
 
-    m14 = b1 - m24/2
-    m13 = 2*b2 - m23/2
-    m12 = 2*a2 - m22/2
-    m11 = a0 - m12/2 - m21/2 - m22/4
+    # print(a0)
+    # print(a)
+    # print(b)
 
-    M = np.array([[m11,m12,m13,m14],
-                  [m21,m22,m23,m24],
-                  [m31,m32,m33,m34],
-                  [m41,m42,m43,m44]])
+    # ft = np.abs(np.fft.fft(Pmat))
+    # plt.figure()
+    # plt.plot(ft)
+    # plt.xlabel('measurement #')
+    # plt.ylabel('FFT Coefficient')
+    # plt.show()
 
-    return M,Malt
+    # print(Pmat.shape)
+    # print(np.linalg.pinv(Wmat).shape)
+
+    Malt = np.linalg.pinv(Wmat) @ Pmat
+
+    # # The even coefficients
+    # a0 = popt[0]
+    # a2 = popt[1]
+    # a3 = popt[2]
+    # a4 = popt[3]
+    # a6 = popt[4]
+    # a7 = popt[5]
+    # a8 = popt[6]
+    # a9 = popt[7]
+    # a10 = popt[8]
+    # a11 = popt[9]
+    # a12 = popt[10]
+
+    # # The odd coefficients
+    # b1 = popt[11]
+    # b2 = popt[12]
+    # b3 = popt[13]
+    # b5 = popt[14]
+    # b7 = popt[15]
+    # b8 = popt[16]
+    # b9 = popt[17]
+    # b10 = popt[18]
+    # b11 = popt[19]
+    # b12 = popt[20]
+
+    # # The even coefficients
+    # a2 = a[1]
+    # a3 = a[2]
+    # a4 = a[3]
+    # a6 = a[4]
+    # a7 = a[5]
+    # a8 = a[6]
+    # a9 = a[7]
+    # a10 = a[8]
+    # a11 = a[9]
+    # a12 = a[10]
+
+    # # The odd coefficients
+    # b1 = b[0]
+    # b2 = b[1]
+    # b3 = b[2]
+    # b5 = b[4]
+    # b7 = b[6]
+    # b8 = b[7]
+    # b9 = b[8]
+    # b10 = b[9]
+    # b11 = b[10]
+    # b12 = b[11]
+
+    # if test_coeffs == True:
+
+    #     print('-4b9 = 4b11? ',-4*b9 == 4*b11)
+    #     print('-4b9',-4*b9)
+    #     print('-4b9',4*b11)
+    #     print('4a9 = -4a11? ',4*a9 == -4*a11)
+
+
+
+    # sineval = MuellerSinusoid(th,a0,a2,a3,a4,a6,a7,a8,a9,a10,a11,a12,b1,b2,b3,b5,b7,b8,b9,b10,b11,b12)
+    # print('Sinusoid Shape')
+    # print(sineval.shape)
+
+    # plt.figure()
+    # plt.title('Irradiance Measurements')
+    # plt.plot(th,sineval,label='sinusoid fit',linestyle='dashdot')
+    # plt.plot(th,Pmat,label='Power measurement')
+    # plt.legend()
+    # plt.xlabel('Measurement')
+    # plt.show()
+
+    # The Mueller Matrix Elements from Azzam
+    # m44 = a6-a4
+    # m43 = 2*(a7-a3)
+    # m42 = -2*(b3+b7)
+    # m41 = -(b5 + m42/2)
+    
+    # m34 = 2*(a9-a11)
+    # m33 = 4*(a8-a12)
+    # m32 = 4*(b8+b12)
+    # m31 = 2*b10 - m32/2
+
+    # m24 = 2*(b11-b9)
+    # m23 = 4*(-b8 + b12)
+    # m22 = 4*(a8+a12)
+    # m21 = 2*a10 - m22/2
+
+    # m14 = b1 - m24/2
+    # m13 = 2*b2 - m23/2
+    # m12 = 2*a2 - m22/2
+    # m11 = a0 - m12/2 - m21/2 - m22/4
+
+    # M = np.array([[m11,m12,m13,m14],
+    #               [m21,m22,m23,m24],
+    #               [m31,m32,m33,m34],
+                #   [m41,m42,m43,m44]])
+
+    return Malt
+
+def ConditionNumber(matrix):
+
+    minv = np.linalg.inv(matrix)
+
+    # compute maximum norm https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
+    norm = np.linalg.norm(matrix,ord=np.inf)
+    ninv = np.linalg.norm(minv,ord=np.inf)
+
+    return norm * ninv 
 
 def FullStokesPolarimeterMeasurement(Sin,nmeas):
 

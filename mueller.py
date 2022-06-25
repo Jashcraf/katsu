@@ -4,6 +4,9 @@ import numpy as np
 def LinearPolarizer(a):
     """Quinn Jarecki's Linear Polarizer, generates an ideal polarizer
 
+    CLY Eq 6.37
+    checked!
+
     Parameters
     ----------
     a : float
@@ -48,17 +51,17 @@ def LinearRetarder(a,r):
         Mueller Matrix for Linear Retarder
     """
 
-    M11 = np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2
-    M12 = (1-np.cos(r))*np.cos(2*a)*np.sin(2*a)
-    M13 = -np.sin(r)*np.sin(2*a)
+    M11 = np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2 # checked
+    M12 = (1-np.cos(r))*np.cos(2*a)*np.sin(2*a) # checked
+    M13 = -np.sin(r)*np.sin(2*a) # checked
 
-    M21 = M11
-    M22 = np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2
-    M23 = np.cos(2*a)*np.sin(r)
+    M21 = M12 # checked but uncertain
+    M22 = np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2 # checked
+    M23 = np.cos(2*a)*np.sin(r) # checked
 
-    M31 = -M13
-    M32 = -M23
-    M33 = np.cos(r)
+    M31 = -M13 # checked
+    M32 = -M23 # checked
+    M33 = np.cos(r) # checked
 
     return np.array([[1,0,0,0],
                      [0,M11,M12,M13],
