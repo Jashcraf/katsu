@@ -137,7 +137,7 @@ def MuellerSinusoid(nmeas,
 
     return signal
 
-def FullMuellerPolarimeterMeasurement(Min,nmeas):
+def FullMuellerPolarimeterMeasurement(Min,nmeas,power):
 
     from numpy.linalg import inv
     from numpy import transpose
@@ -159,11 +159,12 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas):
         Wmat[i,:] = np.kron(Ma[0,:],Mg[:,0])
 
         # A detector measures the first row of the analyzer matrix and first column of the generator matrix
-        Pmat[i] = Ma[0,:] @ Min @ Mg[:,0]
+        Pmat[i] = (Ma[0,:] @ Min @ Mg[:,0])*power
 
     # Compute Mueller Matrix with Moore-Penrose Pseudo Inverse
     # Calculation appears to be sensitive to the method used to compute the inverse! There's something I guess
     M = np.linalg.pinv(Wmat) @ Pmat
+    M = np.reshape(M,[4,4])
 
 
     return M

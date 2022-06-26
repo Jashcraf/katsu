@@ -4,7 +4,7 @@ from polarimetry import *
 import polutils as pol
 import mueller as mul
 
-Min = mul.LinearRetarder(np.pi/22,np.pi/2) @ mul.LinearPolarizer(np.pi/4) @ mul.LinearRetarder(np.pi/16,np.pi/2)
+Min = mul.LinearRetarder(np.random.random()*np.pi,np.pi/2) @ mul.LinearPolarizer(np.random.random()*np.pi) @ mul.LinearRetarder(np.random.random(),np.pi/2)
 # Min /= Min[0,0]
 print('Normalized Mueller In')
 print(Min)

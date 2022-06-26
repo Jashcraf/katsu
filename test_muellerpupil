@@ -1,0 +1,17 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import mueller as mul
+from polarimetry import *
+import poppy
+
+# Load in some PRT Data, let's start with a POPPY-made pupil
+primary = poppy.CircularAperture(radius=4)
+secondary = poppy.AsymmetricSecondaryObscuration(secondary_radius=0.3*u.m,
+                                             support_angle=(40, 140, 220, 320),
+                                             support_width=[0.05, 0.05, 0.05, 0.05],
+                                             support_offset_x=[0, 0, 0, 0],
+                                             name='Complex secondary')
+
+aperture = poppy.CompoundAnalyticOptic(opticslist=[primary,secondary])
+
+aperture.display(what='both')
