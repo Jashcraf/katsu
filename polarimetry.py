@@ -137,7 +137,7 @@ def MuellerSinusoid(nmeas,
 
     return signal
 
-def FullMuellerPolarimeterMeasurement(Min,nmeas,power):
+def FullMuellerPolarimeterMeasurement(Min,nmeas,power,return_condition_number=False):
 
     from numpy.linalg import inv
     from numpy import transpose
@@ -166,8 +166,11 @@ def FullMuellerPolarimeterMeasurement(Min,nmeas,power):
     M = np.linalg.pinv(Wmat) @ Pmat
     M = np.reshape(M,[4,4])
 
+    if return_condition_number == True:
+        return M,ConditionNumber(Wmat)
 
-    return M
+    else:
+        return M
 
 def _FullMuellerPolarimeterMeasurement(Min,nmeas,test_coeffs=False):
 
@@ -336,7 +339,7 @@ def _FullMuellerPolarimeterMeasurement(Min,nmeas,test_coeffs=False):
 
 def ConditionNumber(matrix):
 
-    minv = np.linalg.inv(matrix)
+    minv = np.linalg.pinv(matrix)
 
     # compute maximum norm https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
     norm = np.linalg.norm(matrix,ord=np.inf)

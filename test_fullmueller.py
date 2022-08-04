@@ -10,7 +10,7 @@ print('Normalized Mueller In')
 print(Min)
 
 # Calibration Air Measurement
-Mout_cal = FullMuellerPolarimeterMeasurement(np.identity(4),40)
+Mout_cal = FullMuellerPolarimeterMeasurement(np.identity(4),20,power=1)
 # print('Air Measurement Pinv')
 # Malt_cal = np.reshape(Malt_cal,[4,4])
 # print(np.reshape(Malt_cal,[4,4]))
@@ -21,7 +21,7 @@ Mout_cal = np.reshape(Mout_cal,[4,4])
 print(Mout_cal)
 
 # Measure the SUT
-Mout = FullMuellerPolarimeterMeasurement(Min,40)
+Mout = FullMuellerPolarimeterMeasurement(Min,20,power=1)
 
 Mout = np.reshape(Mout,[4,4])
 
@@ -42,6 +42,6 @@ print(100*(Min-Mout)/Min)
 # print('% Difference pinv')
 # print(100*(Min-Malt)/Min)
 
-# print('Condition Number for Min Measure = ',ConditionNumber(Malt))
-# print('Condition Number for air Measure = ',ConditionNumber(Malt_cal))
+print('Condition Number for Min Measure = ',ConditionNumber(Mout))
+print('Condition Number for air Measure = ',ConditionNumber(Mout_cal))
 

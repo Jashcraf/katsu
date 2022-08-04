@@ -19,7 +19,9 @@ aperture = poppy.CompoundAnalyticOptic(opticslist=[primary,secondary])
 # aperture.display()
 # plt.show()
 
-wf = poppy.FresnelWavefront(wavelength=2.2e-6*u.m,beam_radius=4*u.m,npix=64,oversample=1)
+npix = 256
+
+wf = poppy.FresnelWavefront(wavelength=2.2e-6*u.m,beam_radius=4*u.m,npix=npix,oversample=1)
 array = aperture.get_transmission(wf)
 
 # Some radiometric calculations
@@ -42,14 +44,14 @@ x = np.linspace(-4,4,array.shape[0])
 y = np.linspace(-4,4,array.shape[0])
 x,y = np.meshgrid(x,y)
 
-Min = mul.LinearRetarder(np.random.random()*np.pi,np.pi/2) @ mul.LinearPolarizer(np.random.random()*np.pi) @ mul.LinearRetarder(np.random.random(),np.pi/2)
+Min = mul.LinearRetarder(np.random.random()*np.pi,np.pi/2) @ mul.LinearPolarizer(np.random.random()*np.pi)
 Mpupil = np.zeros([4,4,array_raveled.shape[0]])
 
 # Now do Mueller Polarimetry on Each Pixel
 for i in range(len(array_raveled)):
 
-        Mpupil[:,:,i] = FullMuellerPolarimeterMeasurement(Min,80,array_raveled[i])
+        Mpupil[:,:,i] = FullMuellerPolarimeterMeasurement(Min,40,array_raveled[i])
 
-mul.PlotMuellerArray(Mpupil,64,Min=Min)
+mul.PlotMuellerArray(Mpupil,npix,Min=Min)
 
 
