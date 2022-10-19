@@ -346,20 +346,16 @@ def PauliSpinMatrix(index):
     elif index == 3:
         return np.array([[1j,0],[0,-1j]])
 
-def JonesToMueller(J):
-
-    "CLY "
-    "Untested"
+def JonesToMueller(Jones):
 
     U = np.array([[1,0,0,1],
                   [1,0,0,-1],
                   [0,1,1,0],
-                  [0,1j,-1j,0]])/np.sqrt(2)
+                  [0,1j,-1j,0]])
 
-    
-    Jmult = np.kron(np.conj(J),J) # CLY says "Tensor Product", so this could be the outer product instead?
+    U *= np.sqrt(1/2)
 
-    M = U @ Jmult @ np.linalg.inv(U)
+    M = U @ (np.kron(np.conj(Jones),Jones)) @ np.linalg.inv(U)
 
     return M
 
