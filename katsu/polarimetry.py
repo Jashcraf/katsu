@@ -70,3 +70,92 @@ def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=No
     else:
         return M
     
+def stokes_sinusoid(theta,a0,b2,a4,b4):
+    """sinusoidal response of a single rotating retarder full stokes polarimeter
+
+    Parameters
+    ----------
+    theta : float
+        angle of QWP
+    a0 : float
+        zero frequency coefficient
+    b2 : float
+        sin(2\theta) coefficient
+    a4 : float
+        cos(4\theta) coefficient
+    b4 : float
+        sin(4\theta) coefficient
+
+    Returns
+    -------
+    numpy.ndarray
+        sinusoidal response of the SRRP
+    """
+    return a0 + b2*np.sin(2*theta) + a4*np.cos(4*theta) + b4*np.sin(4*theta)
+
+def full_stokes_polarimetry(thetas,Sin=None,power=None,return_coeffs=False):
+    """conduct a full stokes polarimeter measurement
+
+    Parameters
+    ----------
+    thetas : numpy.ndarray
+        rotation angles of the QWP fast axis w.r.t. the horizontal polarizer
+    Sin : numpy.ndarray, optional
+        input stokes vector, used for simulating polarimetry. by default None
+    power : numpy.ndarray, optional
+        powers measured on detector for each angle theta, by default None
+    return_coeffs : bool, optional
+        option to return the stokes sinusoid coefficients. Useful for evaluating
+        curve fit quality. by default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    nmeas = len(thetas)
+    Pmat = np.zeros([nmeas])
+
+    # Retarder needs to rotate 2pi, break up by nmeas
+    th = thetas
+    thp = np.linspace(0,2*np.pi,101)
+
+    for i in range(nmeas):
+
+        # Mueller Matrix of analyzer
+        M = linear_polarizer(0) @ linear_retarder(th[i],np.pi/2)
+
+        # The top row is the analyzer vector
+        analyzer = M[0,:]
+
+        # Record the power
+        if power is not None:
+            Pmat[i] = power[i]
+        else:
+            Pmat[i] = np.dot(analyzer,Sin)
+
+        # Optionally, add some photon noise
+
+
+    popt,pcov = curve_fit(stokes_sinusoid,
+                          th,
+                          Pmat,
+                          p0 = (1,1,1,1))
+
+    a0 = popt[0]
+    b2 = popt[1]
+    a4 = popt[2]
+    b4 = popt[3]
+
+    # Compute the Stokes Vector
+    S0 = 2*(a0 - a4)
+    S1 = 4*a4
+    S2 = 4*b4
+    S3 = -2*b2
+
+    if return_coeffs:
+        return np.array([S0,S1,S2,S3]),popt
+    else:
+        return np.array([S0,S1,S2,S3])
+
