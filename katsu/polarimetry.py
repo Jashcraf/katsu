@@ -15,7 +15,11 @@ def condition_number(matrix):
 
     return norm * ninv 
 
-def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None):
+def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
+                             starting_angles={'psg_polarizer':0,
+                                              'psg_qwp':0,
+                                              'psa_qwp':0,
+                                              'psa_polarizer':0}):
     """conduct a full mueller polarimeter measurement
 
     Parameters
@@ -29,6 +33,15 @@ def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=No
     Min : numpy.ndarray
         if provided, is the "true" Mueller matrix. This allows us to
         simulate full mueller polarimetry. by default None
+    starting_angles : dict
+        the starting angles (in radians) of the optics that make up the polarization state generator and analyzer. 
+        Keys are:
+        -------------------------------------------
+        psg_polarizer = polarization state generator polarizer angle
+        psg_qwp = polarization state generator quarter wave plate angle
+        psa_polarizer = polarization state analyzer polarizer angle
+        psa_qwp = polarization state analyzer quarter wave plate angle
+
 
     Returns
     -------
@@ -44,10 +57,10 @@ def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=No
     for i in range(nmeas):
 
         # Mueller Matrix of Generator using a QWR
-        Mg = linear_retarder(th[i],np.pi/2) @ linear_polarizer(0)
+        Mg = linear_retarder(starting_angles['psg_qwp']+th[i],np.pi/2) @ linear_polarizer(starting_angles['psg_polarizer'])
 
         # Mueller Matrix of Analyzer using a QWR
-        Ma = linear_polarizer(0) @ linear_retarder(th[i]*5,np.pi/2)
+        Ma = linear_polarizer(starting_angles['psa_polarizer']) @ linear_retarder(starting_angles['psa_qwp']+th[i]*5,np.pi/2)
 
         ## Mueller Matrix of System and Generator
         # The Data Reduction Matrix
