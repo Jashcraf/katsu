@@ -18,7 +18,9 @@ def linear_polarizer(a):
         Mueller Matrix for the linear polarizer
     """
 
-    M00 = 1
+    ones = np.ones_like(a)
+    zeros = np.zeros_like(a)
+
     M01 = np.cos(2*a)
     M02 = np.sin(2*a)
 
@@ -30,10 +32,16 @@ def linear_polarizer(a):
     M21 = np.cos(2*a)*np.sin(2*a)
     M22 = np.sin(2*a)**2
 
-    return 0.5*np.array([[1,M01,M02,0],
-                         [M10,M11,M12,0],
-                         [M20,M21,M22,0],
-                         [0,0,0,0]])
+    M = 0.5*np.array([[ones,M01,M02,zeros],
+                    [M10,M11,M12,zeros],
+                    [M20,M21,M22,zeros],
+                    [zeros,zeros,zeros,zeros]])
+    
+    if M.ndim > 2:
+        for _ in range(M.ndim - 2):
+            M = np.moveaxis(M,-1,0)
+
+    return M 
 
 def linear_retarder(a,r):
     """Quinn Jarecki's Linear Retarder, generates an ideal retarder
@@ -51,6 +59,10 @@ def linear_retarder(a,r):
         Mueller Matrix for Linear Retarder
     """
 
+    ones = np.ones_like(a)
+    zeros = np.zeros_like(a)
+    r = np.full_like(a,r)
+
     M11 = np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2 # checked
     M12 = (1-np.cos(r))*np.cos(2*a)*np.sin(2*a) # checked
     M13 = -np.sin(r)*np.sin(2*a) # checked
@@ -63,7 +75,13 @@ def linear_retarder(a,r):
     M32 = -M23 # checked
     M33 = np.cos(r) # checked
 
-    return np.array([[1,0,0,0],
-                     [0,M11,M12,M13],
-                     [0,M21,M22,M23],
-                     [0,M31,M32,M33]])
+    M = np.array([[ones,zeros,zeros,zeros],
+                [zeros,M11,M12,M13],
+                [zeros,M21,M22,M23],
+                [zeros,M31,M32,M33]])
+
+    if M.ndim > 2:
+        for _ in range(M.ndim - 2):
+            M = np.moveaxis(M,-1,0)
+
+    return M

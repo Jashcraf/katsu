@@ -5,6 +5,65 @@ from .mueller import linear_retarder,linear_polarizer
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
+def broadcast_kron(A,B):
+    """Kronecker product for two dimensional arrays with numpy's broadcasting rules
+
+    Parameters
+    ----------
+    A : numpy.ndarray
+        first array for kronecker product
+    B : numpy.ndarray
+        second array for kronecker product
+
+    Returns
+    -------
+    numpy.ndarray
+        A kron B
+    """
+    return np.einsum('...ij,...jk',A,B)
+
+def broadcast_outer(A,B):
+
+    return np.einsum('...j,...k',A,B)
+
+def jones_to_mueller(jones):
+
+    """Converts a Jones matrix to a Mueller matrix
+
+    Parameters
+    ----------
+    jones : 2x2 ndarray
+        Jones matrix to convert to a mueller matrix
+
+    Returns
+    -------
+    M
+        Mueller matrix from Jones matrix
+    """
+
+    U = np.array([[1,0,0,1],
+                  [1,0,0,-1],
+                  [0,1,1,0],
+                  [0,1j,-1j,0]])
+
+    U *= np.sqrt(1/2)
+
+    M = np.real(U @ (np.kron(np.conj(jones),jones)) @ np.linalg.inv(U))
+
+    return M
+
+def jones_to_mueller_broadcast(jones):
+
+    U = np.array([[1,0,0,1],
+                  [1,0,0,-1],
+                  [0,1,1,0],
+                  [0,1j,-1j,0]])
+
+    U *= np.sqrt(1/2)
+
+    M = np.real(U @ broadcast_kron(jones.conj(),jones) @ U.inv())
+    return M
+
 def condition_number(matrix):
 
     minv = np.linalg.pinv(matrix)
@@ -14,6 +73,58 @@ def condition_number(matrix):
     ninv = np.linalg.norm(minv,ord=np.inf)
 
     return norm * ninv 
+
+def broadcasted_full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
+                                        starting_angles={'psg_polarizer':0,
+                                                        'psg_qwp':0,
+                                                        'psa_qwp':0,
+                                                        'psa_polarizer':0}):
+    
+    """conduct a full mueller polarimeter measurement
+
+    Parameters
+    ----------
+    thetas : numpy.ndarray
+        np.linspace(starting_angle,ending_angle,number_of_measurements)
+    power : float, optional
+        power recorded on a given pixel. Defaults to 1
+    return_condition_number : bool, optional
+        returns condition number of the data reduction matrix. by default False
+    Min : numpy.ndarray
+        if provided, is the "true" Mueller matrix. This allows us to
+        simulate full mueller polarimetry. by default None
+    starting_angles : dict
+        the starting angles (in radians) of the optics that make up the polarization state generator and analyzer. 
+        Keys are:
+        -------------------------------------------
+        psg_polarizer = polarization state generator polarizer angle
+        psg_qwp = polarization state generator quarter wave plate angle
+        psa_polarizer = polarization state analyzer polarizer angle
+        psa_qwp = polarization state analyzer quarter wave plate angle
+
+
+    Returns
+    -------
+    numpy.ndarray
+        Mueller matrix measured by the polarimeter
+    """
+
+    Mg = linear_retarder(starting_angles['psg_qwp']+thetas,np.pi/2) @ linear_polarizer(starting_angles['psg_polarizer'])
+    Ma = linear_polarizer(starting_angles['psa_polarizer']) @ linear_retarder(starting_angles['psa_qwp']+thetas*5,np.pi/2)
+    PSA = Ma[...,0,:]
+    PSG = Mg[...,:,0]
+    Wmat = broadcast_outer(PSA,PSG)
+
+    if Min is not None:
+        PSG = PSG[...,np.newaxis]
+        PSA = PSA[...,np.newaxis]
+        Min = np.broadcast_to(Min,[*PSA.shape[:-2],4,4])
+
+        Pmat = (PSA @ Min @ PSG) * power
+    else:
+        Pmat = power
+    
+
 
 def full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
                              starting_angles={'psg_polarizer':0,
