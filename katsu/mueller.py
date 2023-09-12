@@ -85,3 +85,36 @@ def linear_retarder(a,r):
             M = np.moveaxis(M,-1,0)
 
     return M
+
+def linear_diattenuator(a,Tmin):
+
+    A = 1 + Tmin
+    B = 1 - Tmin
+    C = 2*np.sqrt(Tmin)
+
+    zeros = np.zeros_like(a)
+
+    M01 = B*np.cos(2*a)
+    M02 = B*np.sin(2*a)
+
+    M10 = M01
+    M11 = A*np.cos(2*a)**2 + C*np.sin(2*a)**2
+    M12 = (A-C) * np.cos(2*a) * np.sin(2*a)
+    
+    M20 = M02 
+    M21 = M12
+    M22 = C*np.cos(2*a)**2 + A*np.sin(2*a)**2
+
+    M = np.array([[A,M01,M02,zeros],
+                  [M10,M11,M12,zeros],
+                  [M20,M21,M22,zeros],
+                  [zeros,zeros,zeros,C]])
+    
+    if M.ndim > 2:
+        for _ in range(M.ndim-2):
+            M = np.moveaxis(M,-1,0)
+
+    return M
+
+
+
