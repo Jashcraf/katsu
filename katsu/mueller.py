@@ -2,7 +2,7 @@ import numpy as np
 
 # The Parent Functions
 def linear_polarizer(a):
-    """Quinn Jarecki's Linear Polarizer, generates an ideal polarizer
+    """generates an ideal polarizer
 
     CLY Eq 6.37
     checked!
@@ -44,7 +44,7 @@ def linear_polarizer(a):
     return M 
 
 def linear_retarder(a,r):
-    """Quinn Jarecki's Linear Retarder, generates an ideal retarder
+    """Generates an ideal retarder
 
     Parameters
     ----------
@@ -87,6 +87,20 @@ def linear_retarder(a,r):
     return M
 
 def linear_diattenuator(a,Tmin):
+    """Generates an ideal diattenuator
+
+    Parameters
+    ----------
+    a : float
+        angle of the high-transmission axis w.r.t. horizontal in radians
+    Tmin : float
+        fractional transmission of the low-transmission axis
+
+    Returns
+    -------
+    numpy.ndarray
+        Mueller Matrix for Linear Diattenuator
+    """
 
     A = 1 + Tmin
     B = 1 - Tmin
