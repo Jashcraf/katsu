@@ -90,7 +90,7 @@ def linear_retarder(a, r, shape=None):
     Parameters
     ----------
     a : float, or numpy.ndarray
-        angle of the fast axis w.r.t. horizontal in radians. If numpy array, must be the same shape as `shape`
+        angle of the fast axis w.r.t. horizontal in radians. If numpy array, must 1D
     r : float, or numpy.ndarray
         retardance in radians. If numpy array, must be the same shape as `shape`
     shape : list, optional
@@ -109,6 +109,11 @@ def linear_retarder(a, r, shape=None):
     if M.ndim > 2:
         a = np.broadcast_to(a, [*M.shape[:-2]])
         r = np.broadcast_to(r, [*M.shape[:-2]])
+
+    # if isinstance(a, np.ndarray):
+        
+
+        # expand the Mueller Matrix
 
     # First row
     M[..., 0, 0] = 1.

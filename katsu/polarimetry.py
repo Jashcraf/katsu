@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import transpose
 from numpy.linalg import inv
-from .mueller import linear_retarder,linear_polarizer
+from .mueller import linear_retarder,linear_polarizer, linear_diattenuator
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 
@@ -104,7 +104,11 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
                                         starting_angles={'psg_polarizer':0,
                                                         'psg_qwp':0,
                                                         'psa_qwp':0,
-                                                        'psa_polarizer':0}):
+                                                        'psa_polarizer':0},
+                                        starting_polarization={'psg_Tmin':0,
+                                                               'psg_ret':np.pi/2,
+                                                               'psa_Tmin':0,
+                                                               'psa_ret':np.pi/2}):
     
     """conduct a full mueller polarimeter measurement
 
@@ -113,7 +117,8 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
     thetas : numpy.ndarray
         np.linspace(starting_angle,ending_angle,number_of_measurements)
     power : numpy.ndarray
-        2D array of power recorded from the polarimeter. 
+        3D array of power recorded from the polarimeter. The first two dimensions are spatial, and the last is temporal
+        i.e. power[...,0] is the first measurement, power[...,0] is the second measurement 
     return_condition_number : bool, optional
         returns condition number of the data reduction matrix. by default False
     Min : numpy.ndarray
@@ -135,42 +140,36 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
         Mueller matrix measured by the polarimeter
     """
 
-    # nmeas = len(thetas)
+    nmeas = len(thetas)
 
-    # Mg = linear_retarder(starting_angles['psg_qwp']+thetas,np.pi/2) @ linear_polarizer(starting_angles['psg_polarizer'])
-    # Ma = linear_polarizer(starting_angles['psa_polarizer']) @ linear_retarder(starting_angles['psa_qwp']+thetas*5,np.pi/2)
-    # PSA = Ma[...,0,:]
-    # PSA = np.broadcast_to(PSA, [*M_noisy.shape[:2],*PSA.shape])
-    # PSA = np.moveaxis(PSA,-2,0)
+    psg_tmin = starting_polarization['psg_Tmin']
+    psg_ret = starting_polarization['psg_ret']
+    
+    psa_tmin = starting_polarization['psa_Tmin']
+    psa_ret = starting_polarization['psa_ret']
 
-    # PSG = Mg[...,:,0]
-    # PSG = np.broadcast_to(PSG, [*M_noisy.shape[:2],*PSG.shape])
-    # PSG = np.moveaxis(PSG,-2,0)
+    psg_qwp = linear_retarder(starting_angles['psg_qwp']+thetas, psg_ret, shape=[128, 128, nmeas])
+    psg_hpl = linear_diattenuator(starting_angles['psg_polarizer'], Tmin=psg_tmin, shape=[128, 128, nmeas])
 
-    # Wmat = broadcast_outer(PSA,PSG)
-    # Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
-    # print(Wmat.shape)
-    # Wmat = np.moveaxis(Wmat,0,-2)
-    # print(Wmat.shape)
-    # power_before_analyzer = M_noisy @ PSG[..., np.newaxis] 
-    # PSA_T = np.swapaxes(PSA[..., np.newaxis],-1,-2)
-    # print(PSA_T.shape)
-    # Pmat = PSA_T @ power_before_analyzer 
-    # Pmat = Pmat[..., 0, 0]
-    # Pmat = np.moveaxis(Pmat, 0, -1)[...,np.newaxis]
-    # print(Pmat.shape)
-    # print(Wmat.shape)
-    # M_meas = (np.linalg.pinv(Wmat) @ Pmat)[...,0]
-    # M_meas = M_meas.reshape([*M_meas.shape[:-1],4,4])
+    psa_qwp = linear_retarder(starting_angles['psa_qwp']+thetas*5, psa_ret, shape=[128,128, nmeas])
+    psa_hpl = linear_diattenuator(starting_angles['psa_polarizer'], Tmin=psa_tmin, shape=[128, 128, nmeas]) 
 
-    if Min is not None:
-        PSG = PSG[...,np.newaxis]
-        PSA = PSA[...,np.newaxis]
-        Min = np.broadcast_to(Min,[*PSA.shape[:-2],4,4])
 
-        Pmat = (PSA @ Min @ PSG) * power
-    else:
-        Pmat = power
+    Mg =  psg_qwp @ psg_hpl
+    Ma = psa_hpl @ psa_qwp
+
+    PSA = Ma[...,0,:]
+    PSG = Mg[...,:,0]
+
+    # polarimetric data reduction matrix, flatten Mueller matrix dimension
+    Wmat = broadcast_outer(PSA, PSG)
+    Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
+
+    # Do the data reduction
+    M_meas = np.linalg.pinv(Wmat) @ power[..., np.newaxis]
+    M_meas = M_meas[...,0]
+
+    return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
     
 
 
