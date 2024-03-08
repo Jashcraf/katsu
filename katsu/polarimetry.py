@@ -33,7 +33,7 @@ def broadcast_kron(a,b):
 
 def broadcast_outer(A,B):
 
-    return np.einsum('...j,...k',A,B)
+    return np.einsum('...i,...j',A,B).reshape()
 
 def jones_to_mueller(jones):
 
