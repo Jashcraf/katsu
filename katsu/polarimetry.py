@@ -31,9 +31,26 @@ def broadcast_kron(a,b):
 
     return np.einsum('...ik,...jl',a,b).reshape([*a.shape[:-2],int(a.shape[-2]*b.shape[-2]),int(a.shape[-1]*b.shape[-1])])
 
-def broadcast_outer(A,B):
+def broadcast_outer(a,b):
+    """broadcasted outer product of two A,B,...,N vectors. Used for polarimetric data reduction
 
-    return np.einsum('...i,...j',A,B).reshape()
+    where out is a A,B,...,N,N matrix. While in principle this does not require vectors of different length, it is not tested
+    to produce anything other than square matrices.
+
+    Parameters
+    ----------
+    a : numpy.ndarray
+        A,B,...,N vector 1
+    b : numpy.ndarray
+        A,B,...,N vector 2
+
+    Returns
+    -------
+    numpy.ndarray
+        outer product matrix
+    """
+
+    return np.einsum('...i,...j->...ij',a,b)
 
 def jones_to_mueller(jones):
 
@@ -83,7 +100,7 @@ def condition_number(matrix):
 
     return norm * ninv 
 
-def broadcasted_full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
+def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=False,Min=None,
                                         starting_angles={'psg_polarizer':0,
                                                         'psg_qwp':0,
                                                         'psa_qwp':0,
@@ -95,8 +112,8 @@ def broadcasted_full_mueller_polarimetry(thetas,power=1,return_condition_number=
     ----------
     thetas : numpy.ndarray
         np.linspace(starting_angle,ending_angle,number_of_measurements)
-    power : float, optional
-        power recorded on a given pixel. Defaults to 1
+    power : numpy.ndarray
+        2D array of power recorded from the polarimeter. 
     return_condition_number : bool, optional
         returns condition number of the data reduction matrix. by default False
     Min : numpy.ndarray
@@ -118,11 +135,33 @@ def broadcasted_full_mueller_polarimetry(thetas,power=1,return_condition_number=
         Mueller matrix measured by the polarimeter
     """
 
-    Mg = linear_retarder(starting_angles['psg_qwp']+thetas,np.pi/2) @ linear_polarizer(starting_angles['psg_polarizer'])
-    Ma = linear_polarizer(starting_angles['psa_polarizer']) @ linear_retarder(starting_angles['psa_qwp']+thetas*5,np.pi/2)
-    PSA = Ma[...,0,:]
-    PSG = Mg[...,:,0]
-    Wmat = broadcast_outer(PSA,PSG)
+    # nmeas = len(thetas)
+
+    # Mg = linear_retarder(starting_angles['psg_qwp']+thetas,np.pi/2) @ linear_polarizer(starting_angles['psg_polarizer'])
+    # Ma = linear_polarizer(starting_angles['psa_polarizer']) @ linear_retarder(starting_angles['psa_qwp']+thetas*5,np.pi/2)
+    # PSA = Ma[...,0,:]
+    # PSA = np.broadcast_to(PSA, [*M_noisy.shape[:2],*PSA.shape])
+    # PSA = np.moveaxis(PSA,-2,0)
+
+    # PSG = Mg[...,:,0]
+    # PSG = np.broadcast_to(PSG, [*M_noisy.shape[:2],*PSG.shape])
+    # PSG = np.moveaxis(PSG,-2,0)
+
+    # Wmat = broadcast_outer(PSA,PSG)
+    # Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
+    # print(Wmat.shape)
+    # Wmat = np.moveaxis(Wmat,0,-2)
+    # print(Wmat.shape)
+    # power_before_analyzer = M_noisy @ PSG[..., np.newaxis] 
+    # PSA_T = np.swapaxes(PSA[..., np.newaxis],-1,-2)
+    # print(PSA_T.shape)
+    # Pmat = PSA_T @ power_before_analyzer 
+    # Pmat = Pmat[..., 0, 0]
+    # Pmat = np.moveaxis(Pmat, 0, -1)[...,np.newaxis]
+    # print(Pmat.shape)
+    # print(Wmat.shape)
+    # M_meas = (np.linalg.pinv(Wmat) @ Pmat)[...,0]
+    # M_meas = M_meas.reshape([*M_meas.shape[:-1],4,4])
 
     if Min is not None:
         PSG = PSG[...,np.newaxis]
