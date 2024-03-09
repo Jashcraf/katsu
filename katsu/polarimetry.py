@@ -1,9 +1,6 @@
 import numpy as np
-from numpy import transpose
-from numpy.linalg import inv
 from .mueller import linear_retarder,linear_polarizer, linear_diattenuator
 from scipy.optimize import curve_fit
-import matplotlib.pyplot as plt
 
 
 def broadcast_kron(a,b):
