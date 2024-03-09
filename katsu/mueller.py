@@ -1,4 +1,5 @@
 import numpy as np
+from .katsu_math import broadcast_outer
 
 def _empty_mueller(shape):
     """Returns an empty array to populate with Mueller matrix elements.
@@ -190,6 +191,104 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     M /= 2  
 
     return M
+
+def decompose_diattenuator(M):
+    """Decompose M into a diattenuator using the Polar decomposition
+
+    from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        Mueller Matrix to decompose
+
+    Returns
+    -------
+    numpy.ndarray
+        Diattenuator component of mueller matrix
+    """
+
+    # First, determine the diattenuator
+    T = M[..., 0, 0]
+
+    diattenuation_vector = M[..., 0, 1:] / T
+    D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
+    mD = np.sqrt(1 - D**2)
+    diattenutation_norm = diattenuation_vector / D
+    # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
+    DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
+
+    # create diattenuator
+    I = np.identity(3)
+
+    if M.ndim > 2:
+        I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
+
+    inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
+
+    Md = _empty_mueller(M.shape[:-2])
+
+    # Eq 18 Lu & Chipman
+    Md[..., 0, 0] = 1.
+    Md[..., 0, 1:] = diattenuation_vector
+    Md[..., 1:, 0] = diattenuation_vector
+    Md[..., 1:, 1:] = inner_diattenuator
+    Md = Md * T
+
+    return Md
+
+def decompose_retarder(M):
+    """Decompose M into a retarder using the Polar decomposition
+
+    from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
+
+    Note: this doesn't work if the diattenuation can be described by a pure polarizer,
+    because the matrix is singular and therefore non-invertible
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        Mueller Matrix to decompose
+
+    Returns
+    -------
+    numpy.ndarray
+        Retarder component of mueller matrix
+    """
+
+    Md = decompose_diattenuator(M)
+    
+    # Then, derive the retarder
+    Mr = M @ np.linalg.inv(Md)
+
+    return Mr
+
+
+def decompose_depolarizer(M):
+
+    Md = decompose_diattenuator(M)
+
+    # NOTE: The result is not a pure retarder, but uses the same operation
+    Mp = decompose_retarder(M)
+
+    Pdelta = Mp[..., 1:, 0]
+    mp = Mp[..., 1:, 1:]
+
+    # Eq 52 Lu & Chipman
+    mm = mp @ np.swapaxes(mp, -2, -1)
+    det_mm = np.linalg.det(mm)
+
+    # TODO: Need way of efficiently computing the eigenvalues of mm
+    pass
+
+
+
+
+    
+
+
+
+
 
 # The depreciated parent functions from when katsu was Observatory-Polarimetry
 def _linear_polarizer(a):

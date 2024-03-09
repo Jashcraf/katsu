@@ -1,9 +1,11 @@
-import numpy as np
+from katsu.katsu_math import np, broadcast_outer
 from katsu.mueller import (
     _empty_mueller,
     linear_polarizer,
     linear_retarder,
-    linear_diattenuator
+    linear_diattenuator,
+    decompose_diattenuator,
+    decompose_retarder
 )
 
 def test_empty_mueller():
@@ -88,5 +90,28 @@ def test_linear_diattenuator():
     hpol_test = linear_diattenuator(0, 0)
     ppol_test = linear_diattenuator(np.pi/4, 0)
 
-    # np.testing.assert_allclose(ppol_test, ppol, atol=1e-12)
     np.testing.assert_allclose((hpol_test, ppol_test), (hpol, ppol), atol=1e-12)
+
+def test_decompose_diattenuator():
+
+    # make a horizontal polarizer
+    hpol = linear_diattenuator(0, 0)
+    qwp = linear_retarder(np.pi/4,np.pi/2)
+
+    cpol = qwp @ hpol
+
+    Md = decompose_diattenuator(cpol)
+
+    np.testing.assert_allclose(Md, hpol)
+
+def test_decompose_retarder():
+
+    # make a horizontal polarizer
+    hpol = linear_diattenuator(0, 0.1)
+    qwp = linear_retarder(np.pi/4,np.pi/2)
+
+    cpol = qwp @ hpol
+
+    Mr = decompose_retarder(cpol)
+
+    np.testing.assert_allclose(Mr, qwp, atol=1e-12)
