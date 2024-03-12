@@ -19,6 +19,9 @@ Summary
    :caption: Contents:
 
 modules
+notebooks/FullStokesExample.ipynb
+notebooks/FullMuellerExample.ipynb
+notebooks/BroadcastedPolarimetry.ipynb
 
 
 
