@@ -5,7 +5,8 @@ from katsu.mueller import (
     linear_retarder,
     linear_diattenuator,
     decompose_diattenuator,
-    decompose_retarder
+    decompose_retarder,
+    decompose_depolarizer
 )
 
 def test_empty_mueller():
@@ -115,3 +116,20 @@ def test_decompose_retarder():
     Mr = decompose_retarder(cpol)
 
     np.testing.assert_allclose(Mr, qwp, atol=1e-12)
+
+def test_decompose_depolarizer():
+
+    # make a horizontal polarizer
+    hpol = linear_diattenuator(0, 0.1)
+    qwp = linear_retarder(np.pi/4,np.pi/2)
+
+    depol = np.array([[1., 0., 0., 0.],
+                      [0., 0.9, 0., 0.],
+                      [0., 0., 0.8, 0.],
+                      [0., 0., 0., 0.7]])
+    
+    Mtot = depol @ qwp @ hpol
+
+    Md = decompose_depolarizer(Mtot)
+
+    np.testing.assert_allclose(Md, depol, atol=1e-12)

@@ -237,7 +237,7 @@ def decompose_diattenuator(M):
 
     return Md
 
-def decompose_retarder(M):
+def decompose_retarder(M, return_all=False):
     """Decompose M into a retarder using the Polar decomposition
 
     from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
@@ -249,6 +249,9 @@ def decompose_retarder(M):
     ----------
     M : numpy.ndarray
         Mueller Matrix to decompose
+    return_all : bool
+        Whether to return the retarder and diattenuator vs just the retarder.
+        Defaults to False, which returns both
 
     Returns
     -------
@@ -261,15 +264,36 @@ def decompose_retarder(M):
     # Then, derive the retarder
     Mr = M @ np.linalg.inv(Md)
 
-    return Mr
+    if return_all:
+        return Mr, Md 
+    else:
+        return Mr
 
+def decompose_depolarizer(M, return_all=False):
+    """Decompose M into a depolarizer using the Polar decomposition
 
-def decompose_depolarizer(M):
+    from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
 
-    Md = decompose_diattenuator(M)
+    Parameters
+    ----------
+     M : numpy.ndarray
+        Mueller Matrix to decompose
+    return_all : bool
+        Whether to return the depolaarizer, retarder and diattenuator 
+        vs just the retarder. Defaults to False, which returns just the depolarizer
+
+    Returns
+    -------
+    numpy.ndarray or arrays
+        Decomposed mueller matrix
+    """
 
     # NOTE: The result is not a pure retarder, but uses the same operation
-    Mp = decompose_retarder(M)
+    if return_all:
+        Mp, M_diattenuator = decompose_retarder(M, return_all=return_all)
+    
+    else:
+        Mp = decompose_retarder(M, return_all=return_all)
 
     Pdelta = Mp[..., 1:, 0]
     mp = Mp[..., 1:, 1:]
@@ -279,15 +303,45 @@ def decompose_depolarizer(M):
     det_mm = np.linalg.det(mm)
 
     # TODO: Need way of efficiently computing the eigenvalues of mm
-    pass
+    evals = np.linalg.eigvals(mm)
+
+    e1 = np.sqrt(evals[..., 0])
+    e2 = np.sqrt(evals[..., 1])
+    e3 = np.sqrt(evals[..., 2])
 
 
+    e1e2 = e1 * e2
+    e2e3 = e2 * e3
+    e3e1 = e3 * e1
+    e1e2e3 = e1 * e2 * e3
 
+    # create an identity
+    I = np.eye(3)
+    I = np.broadcast_to(I, [*mm.shape[:-2], *I.shape])
 
+    lhs = mm + (e1e2 + e2e3 + e3e1)*I
+    rhs = (e1 + e2 + e3)*mm + e1e2e3*I
+
+    # Cases for postitive / negative determinant
+    md = np.zeros_like(mm)
+    md[det_mm < 0.] = (-np.linalg.inv(lhs) @ rhs)[det_mm < 0.]
+    md[det_mm > 0.] = (np.linalg.inv(lhs) @ rhs)[det_mm > 0.]
+
+    # populate the depolarizer
+    M_depolarizer = np.zeros_like(M)
+    M_depolarizer[..., 1:, 0] = Pdelta
+    M_depolarizer[..., 1:, 1:] = md
+    M_depolarizer[..., 0, 0,] = 1.
+
+    if return_all:
+
+        # compute the retarder
+        M_retarder = np.linalg.inv(M_depolarizer) @ Mp
+
+        return M_depolarizer, M_retarder, M_diattenuator
     
-
-
-
+    else:
+        return M_depolarizer
 
 
 # The depreciated parent functions from when katsu was Observatory-Polarimetry
