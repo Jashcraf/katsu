@@ -114,9 +114,14 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
     # polarimetric data reduction matrix, flatten Mueller matrix dimension
     Wmat = broadcast_outer(PSA, PSG)
     Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
+    Winv = np.linalg.inv(Winv)
+    power_expand = power[..., np.newaxis]
+
+    print('Winv shape = ',Winv.shape)
+    print('power shape', power_expand.shape)
 
     # Do the data reduction
-    M_meas = np.linalg.pinv(Wmat) @ power[..., np.newaxis]
+    M_meas = Winv @ power_expand
     M_meas = M_meas[...,0]
 
     return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
