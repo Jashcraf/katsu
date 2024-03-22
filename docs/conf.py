@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 
 # -- Project information -----------------------------------------------------
 
-project = 'Katsu'
+project = 'katsu'
 copyright = '2024, Jaren N. Ashcraft'
 author = 'Jaren N. Ashcraft'
 
@@ -34,6 +34,7 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
     'numpydoc',
+    'nbsphinx'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
