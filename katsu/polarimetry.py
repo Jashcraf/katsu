@@ -92,17 +92,25 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
 
     nmeas = len(thetas)
 
+    # handle the case of imaging v.s. single-pixel polarimetry
+    if isinstance(power, np.ndarray):
+        if power.ndim > 1:
+            frame_shape = power.shape[:-1]
+
+        else:
+            frame_shape = ()
+
     psg_tmin = starting_polarization['psg_Tmin']
     psg_ret = starting_polarization['psg_ret']
     
     psa_tmin = starting_polarization['psa_Tmin']
     psa_ret = starting_polarization['psa_ret']
 
-    psg_qwp = linear_retarder(starting_angles['psg_qwp']+thetas, psg_ret, shape=[128, 128, nmeas])
-    psg_hpl = linear_diattenuator(starting_angles['psg_polarizer'], Tmin=psg_tmin, shape=[128, 128, nmeas])
+    psg_qwp = linear_retarder(starting_angles['psg_qwp']+thetas, psg_ret, shape=[*frame_shape, nmeas])
+    psg_hpl = linear_diattenuator(starting_angles['psg_polarizer'], Tmin=psg_tmin, shape=[*frame_shape, nmeas])
 
-    psa_qwp = linear_retarder(starting_angles['psa_qwp']+thetas*5, psa_ret, shape=[128,128, nmeas])
-    psa_hpl = linear_diattenuator(starting_angles['psa_polarizer'], Tmin=psa_tmin, shape=[128, 128, nmeas]) 
+    psa_qwp = linear_retarder(starting_angles['psa_qwp']+thetas*5, psa_ret, shape=[*frame_shape, nmeas])
+    psa_hpl = linear_diattenuator(starting_angles['psa_polarizer'], Tmin=psa_tmin, shape=[*frame_shape, nmeas]) 
 
 
     Mg =  psg_qwp @ psg_hpl
