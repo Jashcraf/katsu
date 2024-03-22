@@ -124,8 +124,6 @@ def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=Fa
     Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
     Winv = np.linalg.pinv(Wmat)
     power_expand = power[..., np.newaxis]
-    print('Winv shape = ',Winv.shape)
-    print('power shape', power_expand.shape)
 
     # Do the data reduction
     M_meas = Winv @ power_expand
