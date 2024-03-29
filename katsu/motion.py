@@ -75,6 +75,64 @@ class AgilisRotationStage(BaseRotationStage):
         self.channel = channel
         self.axis = axis
 
+    def set_step_delay(self, delay):
+        """Sets the step delay of the stepping mode, applies for both positive and negative directions.
+        Delay is programmed as multiples of 10 microseconds. Max value is equal to 2 second delay
+
+        Parameters
+        ----------
+        delay : int
+            delay in units of 10 microseconds
+        """
+
+        # set limits of step delay
+        if delay < 0:
+            delay = 0
+        elif delay > 200000:
+            delay = 200000
+
+        commandstring = f'{self.axis} DL {delay}' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+    def start_jog_motion(self, jog_mode):
+        """Starts a jog motion at the defined speed specified by an integer
+
+        Notes
+        -----
+        the sign of the jog mode defines forward (+) or backward (-) motion
+        jog_mode = -4 or 4, 666 steps/s at defined step amplitude
+        jog_mode = -3 or 3, 1700 steps/s at defined step amplitude
+        jog_mode = -2 or 2, 100 steps/s at defined step amplitude
+        jog_mode = -1 or 1, 5 steps/s at defined step amplitude
+        jog_mode = 0, No move, go to READY state
+
+        Parameters
+        ----------
+        jog_mode : _type_
+            _description_
+        """
+
+        if np.abs(jog_mode) > 4:
+            jog_mode = 0
+
+        commandstring = f'{self.axis} JA {jog_mode}' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+    def tell_limit_status(self):
+        """Returns the limits switch status of the controller, the returns are the following
+
+        PH0 : No limit switch active
+        PH1 : Limit switch of channel #1 is active, #2 is not
+        PH2 : Limit switch of channel #2 is active, #1 is not
+        PH3 : Limit switch of channel #1 and #2 are
+        """
+
+        commandstring = 'PH'
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
     def set_mode_local(self):
         """sets to local mode, where only status queries are allowed
         """
@@ -147,6 +205,14 @@ class AgilisRotationStage(BaseRotationStage):
         """
 
         commandstring = f'{self.axis} PA {target_position}' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+    def zero_position(self):
+        """resets the step counter to zero
+        """
+
+        commandstring = f'{self.axis} ZP' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
