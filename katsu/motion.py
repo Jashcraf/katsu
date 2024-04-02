@@ -101,7 +101,9 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} DL?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
+        
         return out
 
     def start_jog_motion(self, jog_mode):
@@ -135,7 +137,8 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} JA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
 
         return out
     
@@ -146,7 +149,10 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} MA' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
+
+        return out
 
 
     def set_mode_local(self):
@@ -216,7 +222,8 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} PA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
 
         return out
     
@@ -302,6 +309,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
         out = self.serial_communication.read(size=8)
+
         return out
     
     
@@ -323,6 +331,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
         out = self.serial_communication.read(size=8)
+
         return out
     
 
@@ -334,7 +343,9 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} TP' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
+
         return out
     
     def get_axis_status(self):
@@ -350,7 +361,9 @@ class AgilisRotationStage(BaseRotationStage):
 
         commandstring = f'{self.axis} TS' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        out = self.serial_communication.write(commandbytes)
+        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.read(bytes=8)
+
         return out
 
 
