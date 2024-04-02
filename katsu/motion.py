@@ -95,6 +95,15 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
+    def get_step_delay(self):
+        """return current step delay
+        """
+
+        commandstring = f'{self.axis} DL?' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+        return out
+
     def start_jog_motion(self, jog_mode):
         """Starts a jog motion at the defined speed specified by an integer
 
@@ -109,8 +118,8 @@ class AgilisRotationStage(BaseRotationStage):
 
         Parameters
         ----------
-        jog_mode : _type_
-            _description_
+        jog_mode : int
+            jog mode to begin motion
         """
 
         if np.abs(jog_mode) > 4:
@@ -119,6 +128,98 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} JA {jog_mode}' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
+
+    def get_jog_mode(self):
+        """return current jog mode, see start_jog_motion
+        """
+
+        commandstring = f'{self.axis} JA?' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+
+        return out
+    
+    def measure_current_position(self):
+        """starts a process to measure current position. Interrupts USB communication 
+        during the process. This can last up to 2 minutes
+        """
+
+        commandstring = f'{self.axis} MA' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+
+
+    def set_mode_local(self):
+        """sets to local mode, where only status queries are allowed
+        """
+
+        commandstring = 'ML' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+
+    def set_mode_remote(self):
+        """sets to local mode, where status queries and motion control are allowed
+        """
+
+        commandstring = 'MR' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+    def move_to_limit(self, jog_mode):
+        """Moves to limit with a jog motion at the defined speed specified by an integer
+
+        Notes
+        -----
+        the sign of the jog mode defines forward (+) or backward (-) motion
+        jog_mode = -4 or 4, 666 steps/s at defined step amplitude
+        jog_mode = -3 or 3, 1700 steps/s at defined step amplitude
+        jog_mode = -2 or 2, 100 steps/s at defined step amplitude
+        jog_mode = -1 or 1, 5 steps/s at defined step amplitude
+        jog_mode = 0, No move, go to READY state
+
+        Parameters
+        ----------
+        jog_mode : int
+            jog mode to begin motion
+        
+        """
+
+        commandstring = f'{self.axis} MV {jog_mode}' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+
+    def absolute_move(self, target_position):
+        """starts a process to move to an absolute position, this interrupts USB communication. 
+        After the position is found USB coms are opened again.
+
+        Notes
+        -----
+        The absolute position is found by moving from the current position to the motion limit, twice
+        As such, this takes some time and is not reccomended for quick use.
+
+        Parameters
+        ----------
+        target_position : int
+            target position in 1/1000th of total travel
+        """
+
+        commandstring = f'{self.axis} PA {target_position}' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
+
+    def get_current_target_position(self):
+        """Returns current target position when using absolute move
+        """
+
+        commandstring = f'{self.axis} PA?' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+
+        return out
+    
 
     def tell_limit_status(self):
         """Returns the limits switch status of the controller, the returns are the following
@@ -133,21 +234,38 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-    def set_mode_local(self):
-        """sets to local mode, where only status queries are allowed
+    
+    def relative_move(self, steps):
+        """Move relative to current position in steps whose amplitude are defined by the SU command
+        (defaults to 16)
+
+        Parameters
+        ----------
+        steps : int
+            number of steps to move
         """
 
-        commandstring = 'ML' + self.termination_character
+        commandstring = f'{self.axis} PR {steps}' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-    def set_mode_remote(self):
-        """sets to local mode, where status queries and motion control are allowed
+    def reset_controller(self):
+        """Resets the controller, all temporary settings are reset to default and 
+        controller is in local mode
         """
 
-        commandstring = 'MR' + self.termination_character
+        commandstring = 'RS'
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
+
+    def stop_motion(self):
+        """Stops the motion on the defined axis, sets state to be ready
+        """
+        
+        commandstring = f'{self.axis} ST' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        self.serial_communication.write(commandbytes)
+
 
     def set_step_amplitude(self, amplitude):
         """Sets step amplitude in positive and negative direction.
@@ -175,38 +293,64 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-    def relative_move(self, steps):
-        """Move relative to current position in steps whose amplitude are defined by the SU command
-        (defaults to 16)
-
-        Parameters
-        ----------
-        steps : int
-            number of steps to move
+    
+    def get_step_amplitude(self):
+        """Returns the current step amplitude, should be in the range -50 to 50
         """
 
-        commandstring = f'{self.axis} PR {steps}' + self.termination_character
+        commandstring = f'{self.axis} SU?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.write(commandbytes)
+        return out
+    
+    
+    def get_previous_command_error(self):
+        """get the error of the previous command,
 
-    def absolute_move(self, target_position):
-        """starts a process to move to an absolute position, this interrupts USB communication. 
-        After the position is found USB coms are opened again.
-
-        Notes
-        -----
-        The absolute position is found by moving from the current position to the motion limit, twice
-        As such, this takes some time and is not reccomended for quick use.
-
-        Parameters
-        ----------
-        target_position : int
-            target position in 1/1000th of total travel
+        Error Codes
+        -------
+        0 : No Error
+        -1 : Unknown command
+        -2 : Axis out of range
+        -3 : Wrong format for parameter nn
+        -4 : Parameter nn out of range
+        -5 : Not allowed in local mode
+        -6 : Note allowed in current state
         """
 
-        commandstring = f'{self.axis} PA {target_position}' + self.termination_character
+        commandstring = 'TE'
         commandbytes = bytes(commandstring, encoding=self.encoding)
-        self.serial_communication.write(commandbytes)
+        out = self.serial_communication.write(commandbytes)
+        return out
+    
+
+    def get_number_of_steps(self):
+        """Returns the number of accumullated steps in the forward direction minus the
+        number of steps in backward direction since powering the controller or since
+        the last zero point.
+        """
+
+        commandstring = f'{self.axis} TP' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+        return out
+    
+    def get_axis_status(self):
+        """Returns the status of the axis
+
+        Axis Status
+        -------
+        0 : Ready (Not moving)
+        1 : Stepping (Currently executing a PR command)
+        2 : Jogging (Currently executing a JA command)
+        3 : Moving to limit (Currently executing a MV, MA, or PA command)
+        """
+
+        commandstring = f'{self.axis} TS' + self.termination_character
+        commandbytes = bytes(commandstring, encoding=self.encoding)
+        out = self.serial_communication.write(commandbytes)
+        return out
+
 
     def zero_position(self):
         """resets the step counter to zero

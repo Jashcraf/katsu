@@ -48,7 +48,7 @@ def condition_number(matrix):
     norm = np.linalg.norm(matrix,ord=np.inf)
     ninv = np.linalg.norm(minv,ord=np.inf)
 
-    return norm * ninv 
+    return norm * ninv
 
 def broadcasted_full_mueller_polarimetry(thetas,power,return_condition_number=False,Min=None,
                                         starting_angles={'psg_polarizer':0,
