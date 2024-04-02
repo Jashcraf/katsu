@@ -97,12 +97,16 @@ class AgilisRotationStage(BaseRotationStage):
 
     def get_step_delay(self):
         """return current step delay
+
+        FIXME: This stalls indefinitely, can't figure out source. It might be
+        that it's waiting for 8 bytes and not returning 8 bytes?
+
         """
 
         commandstring = f'{self.axis} DL?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
         
         return out
 
@@ -138,7 +142,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} JA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
     
@@ -150,7 +154,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} MA' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
 
@@ -223,7 +227,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} PA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
     
@@ -308,13 +312,15 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} SU?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
     
     
     def get_previous_command_error(self):
         """get the error of the previous command,
+
+        FIXME: This stalls indefinitely if there's no error
 
         Error Codes
         -------
@@ -330,7 +336,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = 'TE'
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
     
@@ -344,12 +350,14 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} TP' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
-
+        out = self.serial_communication.read_until(expected=self.termination_character)
+        
         return out
     
     def get_axis_status(self):
         """Returns the status of the axis
+
+        FIXME: This stalls indefinitely when not moving
 
         Axis Status
         -------
@@ -362,7 +370,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} TS' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read(size=8)
+        out = self.serial_communication.read_until(expected=self.termination_character)
 
         return out
 
