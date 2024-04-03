@@ -79,7 +79,7 @@ class AgilisRotationStage(BaseRotationStage):
         -----
         Inherits from BaseRotationStage
         """
-        super().__init__(port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding)
+        super().__init__(port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding, timeout)
         self.channel = channel
         self.axis = axis
 
