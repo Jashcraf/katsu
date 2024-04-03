@@ -1,5 +1,6 @@
 """Wrappers around Pyserial instances"""
-import numpy as np
+import numpy as np # uses true numpy
+
 from serial.serialutil import (
     PARITY_NONE, 
     PARITY_EVEN, 
@@ -12,7 +13,7 @@ import serial
 
 class BaseRotationStage:
 
-    def __init__(self, port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding):
+    def __init__(self, port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding, timeout):
         """init a rotation stage for motion control
         
         Notes:
@@ -40,6 +41,8 @@ class BaseRotationStage:
             What to use to denote line termination
         encoding : str
             What encoding to use to convert command strings to bytes
+        timeout : float
+            Set read timeout value in seconds
         """
 
         # set up instance serial communication
@@ -47,7 +50,8 @@ class BaseRotationStage:
                                                   baudrate=baudrate,
                                                   bytesize=bytesize,
                                                   parity=parity,
-                                                  stopbits=stop_bits)
+                                                  stopbits=stop_bits,
+                                                  timeout=timeout)
         
         self.termination_character = termination_character
         self.encoding = encoding
@@ -61,7 +65,7 @@ class BaseRotationStage:
 
 class AgilisRotationStage(BaseRotationStage):
 
-    def __init__(self, channel=1, axis=1, port='COM1', baudrate=921600, bytesize=8, data_bits=8, parity=PARITY_NONE, stop_bits=1, termination_character='\r\n', encoding='utf-8'):
+    def __init__(self, channel=1, axis=1, port='COM1', baudrate=921600, bytesize=8, data_bits=8, parity=PARITY_NONE, stop_bits=1, timeout=1, termination_character='\r\n', encoding='utf-8'):
         """_summary_
 
         Parameters
@@ -70,6 +74,10 @@ class AgilisRotationStage(BaseRotationStage):
             Channel on the AG-UC2/8 controller, by default 1
         axis : int, optional
             Axis on the AG-UC2/8 controller, by default 1
+
+        Notes
+        -----
+        Inherits from BaseRotationStage
         """
         super().__init__(port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding)
         self.channel = channel
@@ -106,7 +114,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} DL?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
         
         return out
 
@@ -142,7 +150,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} JA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
     
@@ -154,7 +162,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} MA' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
 
@@ -227,7 +235,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} PA?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
     
@@ -312,7 +320,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} SU?' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
     
@@ -336,7 +344,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = 'TE'
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
     
@@ -350,7 +358,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} TP' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
         
         return out
     
@@ -370,7 +378,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = f'{self.axis} TS' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-        out = self.serial_communication.read_until(expected=self.termination_character)
+        out = self.serial_communication.readline()
 
         return out
 
