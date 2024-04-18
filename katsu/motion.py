@@ -391,6 +391,37 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
+    @property
+    def angular_step_size(self):
+        return self._angular_step_size
+
+    @property.setter
+    def angular_step_size(self, value):
+        self._angular_step_size = value
+
+    @property
+    def angular_offset(self):
+        return self._angular_offset
+    
+    @property.setter
+    def angular_offset(self, value):
+        self.angular_offset = value
+    
+    def compute_angular_position(self):
+        outstring = self.get_number_of_steps().decode(self.encoding)
+        parsed_outstring = outstring[4:-2] # start after TP, end before termination character
+        steps = int(parsed_outstring)
+        self.angular_position = steps * self.angular_step_size
+
+    @property
+    def angular_position(self):
+        return self._angular_position
+    
+    @property.setter
+    def angular_position(self, value):
+        self._angular_position = value
+
+
     
 
 
