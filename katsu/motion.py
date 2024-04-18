@@ -395,7 +395,7 @@ class AgilisRotationStage(BaseRotationStage):
     def angular_step_size(self):
         return self._angular_step_size
 
-    @property.setter
+    @angular_step_size.setter
     def angular_step_size(self, value):
         self._angular_step_size = value
 
@@ -403,7 +403,7 @@ class AgilisRotationStage(BaseRotationStage):
     def angular_offset(self):
         return self._angular_offset
     
-    @property.setter
+    @angular_offset.setter
     def angular_offset(self, value):
         self.angular_offset = value
     
@@ -417,7 +417,7 @@ class AgilisRotationStage(BaseRotationStage):
     def angular_position(self):
         return self._angular_position
     
-    @property.setter
+    @angular_position.setter
     def angular_position(self, value):
         self._angular_position = value
 
