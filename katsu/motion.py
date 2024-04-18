@@ -409,7 +409,8 @@ class AgilisRotationStage(BaseRotationStage):
     
     def compute_angular_position(self):
         outstring = self.get_number_of_steps().decode(self.encoding)
-        parsed_outstring = outstring[4:-2] # start after TP, end before termination character
+        _, TP, parsed_outstring = outstring.partition('TP') # get the number and termination char
+        parsed_outstring = parsed_outstring.split('TP')[0] # remove termination char
         steps = int(parsed_outstring)
         self.angular_position = steps * self.angular_step_size
 
