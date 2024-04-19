@@ -232,7 +232,7 @@ def decompose_diattenuator(M):
 
     if M.ndim > 2:
         I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
-        mD = mD[..., np.newaxis]
+        mD = mD[..., np.newaxis, np.newaxis]
 
     inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
 
