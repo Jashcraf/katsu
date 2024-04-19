@@ -211,7 +211,11 @@ def decompose_diattenuator(M):
     # First, determine the diattenuator
     T = M[..., 0, 0]
 
-    diattenuation_vector = M[..., 0, 1:] / T
+    if M.ndim > 2:
+        diattenuation_vector = M[..., 0, 1:] / T[..., np.newaxis]
+    else:
+        diattenuation_vector = M[..., 0, 1:] / T
+        
     D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
     mD = np.sqrt(1 - D**2)
     diattenutation_norm = diattenuation_vector / D
