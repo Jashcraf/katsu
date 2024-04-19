@@ -21,7 +21,3 @@ classifiers=[
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
-
-# Build documentation in the "docs/" directory with Sphinx
-sphinx:
-  configuration: docs/conf.py
