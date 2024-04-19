@@ -18,7 +18,7 @@ Summary
    :maxdepth: 1
    :caption: Contents:
 
-   modules.rst
+   modules
    notebooks/FullStokesExample.ipynb
    notebooks/FullMuellerExample.ipynb
    notebooks/BroadcastedPolarimetry.ipynb
