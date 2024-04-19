@@ -8,9 +8,11 @@ license = {file = "LICENSE.md"}
 authors = [
   {name = "Jaren N. Ashcraft", email = "jashcraft@arizona.edu"},
 ]
+
 keywords = ["python", "optics", "telescope", "polarization", "mueller", "polarimetry"]
 urls = {repository = "https://github.com/jashcraf/katsu"}
 dependencies = ["numpy", "scipy", "pyserial"]
+
 classifiers=[
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
@@ -19,3 +21,7 @@ classifiers=[
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
+
+# Build documentation in the "docs/" directory with Sphinx
+sphinx:
+  configuration: docs/conf.py
