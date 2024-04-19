@@ -1,21 +1,21 @@
 katsu package
-============
+=============
 
 Submodules
 ----------
 
 katsu.katsu_math module
---------------------
+-----------------------
 
-.. automodule:: poke.katsu_math
+.. automodule:: katsu.katsu_math
    :members:
    :undoc-members:
    :show-inheritance:
 
 katsu.motion module
---------------------
+-------------------
 
-.. automodule:: poke.motion
+.. automodule:: katsu.motion
    :members:
    :undoc-members:
    :show-inheritance:
@@ -23,15 +23,15 @@ katsu.motion module
 katsu.mueller module
 --------------------
 
-.. automodule:: poke.mueller
+.. automodule:: katsu.mueller
    :members:
    :undoc-members:
    :show-inheritance:
 
 katsu.polarimetry module
---------------------
+------------------------
 
-.. automodule:: poke.polarimetry
+.. automodule:: katsu.polarimetry
    :members:
    :undoc-members:
    :show-inheritance:

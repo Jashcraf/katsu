@@ -1,5 +1,5 @@
 katsu
-====
+=====
 
 .. toctree::
    :maxdepth: 4
