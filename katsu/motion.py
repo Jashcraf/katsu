@@ -66,7 +66,7 @@ class BaseRotationStage:
 class AgilisRotationStage(BaseRotationStage):
 
     def __init__(self, channel=1, axis=1, port='COM1', baudrate=921600, bytesize=8, data_bits=8, parity=PARITY_NONE, stop_bits=1, timeout=1, termination_character='\r\n', encoding='utf-8'):
-        """_summary_
+        """Agilis Newport Piezoelectric rotation stage
 
         Parameters
         ----------
@@ -330,8 +330,8 @@ class AgilisRotationStage(BaseRotationStage):
 
         FIXME: This stalls indefinitely if there's no error
 
-        Error Codes
-        -------
+        Notes
+        -----
         0 : No Error
         -1 : Unknown command
         -2 : Axis out of range
@@ -368,7 +368,6 @@ class AgilisRotationStage(BaseRotationStage):
         FIXME: This stalls indefinitely when not moving
 
         Axis Status
-        -------
         0 : Ready (Not moving)
         1 : Stepping (Currently executing a PR command)
         2 : Jogging (Currently executing a JA command)
