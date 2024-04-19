@@ -9,7 +9,9 @@ Katsu is a package for full Mueller and Stokes polarimetry in the laboratory, co
 
 Summary
 -------
+
 **What this software does:**
+
 * Spatially-broadcasted Mueller calculus
 * Routines for full Stokes and Mueller data reduction
 * Options for controlling motion stages that enable polarimetry
