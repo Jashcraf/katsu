@@ -215,10 +215,15 @@ def decompose_diattenuator(M):
         diattenuation_vector = M[..., 0, 1:] / T[..., np.newaxis]
     else:
         diattenuation_vector = M[..., 0, 1:] / T
-        
+
     D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
     mD = np.sqrt(1 - D**2)
-    diattenutation_norm = diattenuation_vector / D
+
+    if M.ndim > 2:
+        diattenutation_norm = diattenuation_vector / D[..., np.newaxis]
+    else:
+        diattenutation_norm = diattenuation_vector / D
+        
     # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
     DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
 
