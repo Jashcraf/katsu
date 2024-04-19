@@ -223,7 +223,7 @@ def decompose_diattenuator(M):
         diattenutation_norm = diattenuation_vector / D[..., np.newaxis]
     else:
         diattenutation_norm = diattenuation_vector / D
-        
+
     # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
     DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
 
@@ -232,6 +232,7 @@ def decompose_diattenuator(M):
 
     if M.ndim > 2:
         I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
+        mD = mD[..., np.newaxis]
 
     inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
 
