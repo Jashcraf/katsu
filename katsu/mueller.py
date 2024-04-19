@@ -243,7 +243,11 @@ def decompose_diattenuator(M):
     Md[..., 0, 1:] = diattenuation_vector
     Md[..., 1:, 0] = diattenuation_vector
     Md[..., 1:, 1:] = inner_diattenuator
-    Md = Md * T
+
+    if M.ndim > 2:
+        Md = Md * T[..., np.newaxis, np.newaxis]
+    else:
+        Md = Md * T
 
     return Md
 
