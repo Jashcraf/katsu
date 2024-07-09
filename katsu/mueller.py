@@ -211,10 +211,20 @@ def decompose_diattenuator(M):
     # First, determine the diattenuator
     T = M[..., 0, 0]
 
-    diattenuation_vector = M[..., 0, 1:] / T
+    if M.ndim > 2:
+        diattenuation_vector = M[..., 0, 1:] / T[..., np.newaxis]
+    else:
+        diattenuation_vector = M[..., 0, 1:] / T
+
     D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
+    # D /= np.max(D)
     mD = np.sqrt(1 - D**2)
-    diattenutation_norm = diattenuation_vector / D
+
+    if M.ndim > 2:
+        diattenutation_norm = diattenuation_vector / D[..., np.newaxis]
+    else:
+        diattenutation_norm = diattenuation_vector / D
+
     # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
     DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
 
@@ -223,6 +233,7 @@ def decompose_diattenuator(M):
 
     if M.ndim > 2:
         I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
+        mD = mD[..., np.newaxis, np.newaxis]
 
     inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
 
@@ -233,7 +244,11 @@ def decompose_diattenuator(M):
     Md[..., 0, 1:] = diattenuation_vector
     Md[..., 1:, 0] = diattenuation_vector
     Md[..., 1:, 1:] = inner_diattenuator
-    Md = Md * T
+
+    if M.ndim > 2:
+        Md = Md * T[..., np.newaxis, np.newaxis]
+    else:
+        Md = Md * T
 
     return Md
 
@@ -268,7 +283,7 @@ def decompose_retarder(M, return_all=False):
         return Mr, Md 
     else:
         return Mr
-
+    
 def decompose_depolarizer(M, return_all=False):
     """Decompose M into a depolarizer using the Polar decomposition
 
@@ -309,6 +324,11 @@ def decompose_depolarizer(M, return_all=False):
     e2 = np.sqrt(evals[..., 1])
     e3 = np.sqrt(evals[..., 2])
 
+    if M.ndim > 2:
+        e1 = e1[...,np.newaxis,np.newaxis]
+        e2 = e2[...,np.newaxis,np.newaxis]
+        e3 = e3[...,np.newaxis,np.newaxis]
+
 
     e1e2 = e1 * e2
     e2e3 = e2 * e3
@@ -342,6 +362,36 @@ def decompose_depolarizer(M, return_all=False):
     
     else:
         return M_depolarizer
+def mueller_to_jones(M):
+    """Converts Mueller matrix to a relative Jones matrix. Phase aberration is relative to the Pxx component.
+
+    Returns
+    -------
+    J : 2x2 ndarray
+        Jones matrix from Mueller matrix calculation
+    """
+
+    "CLY Eq. 6.112"
+    "Untested"
+
+    pxx = np.sqrt((M[0, 0] + M[0, 1] + M[1, 0] + M[1, 1]) / 2)
+    pxy = np.sqrt((M[0, 0] - M[0, 1] + M[1, 0] - M[1, 1]) / 2)
+    pyx = np.sqrt((M[0, 0] + M[0, 1] - M[1, 0] - M[1, 1]) / 2)
+    pyy = np.sqrt((M[0, 0] - M[0, 1] - M[1, 0] + M[1, 1]) / 2)
+
+    txx = 0  # This phase is not determined
+    txy = -np.arctan2((M[0, 3] + M[1, 3]) , (M[0, 2] + M[1, 2]))
+    tyx = np.arctan2((M[3, 0] + M[3, 1]) , (M[2, 0] + M[2, 1]))
+    tyy = np.arctan2((M[3, 2] - M[2, 3]) , (M[2, 2] + M[3, 3]))
+
+    J = np.array(
+        [
+            [pxx * np.exp(-1j * txx), pxy * np.exp(-1j * txy)],
+            [pyx * np.exp(-1j * tyx), pyy * np.exp(-1j * tyy)],
+        ]
+    )
+
+    return J
 
 
 # The depreciated parent functions from when katsu was Observatory-Polarimetry
