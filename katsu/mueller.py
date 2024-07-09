@@ -362,6 +362,7 @@ def decompose_depolarizer(M, return_all=False):
     
     else:
         return M_depolarizer
+
 def mueller_to_jones(M):
     """Converts Mueller matrix to a relative Jones matrix. Phase aberration is relative to the Pxx component.
 
