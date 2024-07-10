@@ -21,6 +21,7 @@ Summary
    :caption: Contents:
 
    modules
+   notebooks/MuellerCalculus.ipynb
    notebooks/FullStokesExample.ipynb
    notebooks/FullMuellerExample.ipynb
    notebooks/BroadcastedPolarimetry.ipynb

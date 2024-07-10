@@ -20,7 +20,7 @@ np = BackendShim(_np)
 
 
 def set_backend_to_numpy():
-    """Convenience method to automatically configure poke's backend to cupy."""
+    """Convenience method to automatically configure katsu's backend to cupy."""
     import numpy as cp
 
     np._srcmodule = cp
@@ -29,14 +29,14 @@ def set_backend_to_numpy():
 
 
 def set_backend_to_cupy():
-    """Convenience method to automatically configure poke's backend to cupy."""
+    """Convenience method to automatically configure katsu's backend to cupy."""
     import cupy as cp
 
     np._srcmodule = cp
 
     return
 
-def broadcast_kron(a,b):
+def broadcast_kron(a, b):
     """broadcasted kronecker product of two N,M,...,2,2 arrays. Used for jones -> mueller conversion
     In the unbroadcasted case, this output looks like
 
@@ -59,9 +59,10 @@ def broadcast_kron(a,b):
         N,M,...,4,4 array
     """
 
-    return np.einsum('...ik,...jl',a,b).reshape([*a.shape[:-2],int(a.shape[-2]*b.shape[-2]),int(a.shape[-1]*b.shape[-1])])
+    return np.einsum('...ik,...jl', a, b).reshape([*a.shape[:-2],int(a.shape[-2]*b.shape[-2]),int(a.shape[-1]*b.shape[-1])])
 
-def broadcast_outer(a,b):
+
+def broadcast_outer(a, b):
     """broadcasted outer product of two A,B,...,N vectors. Used for polarimetric data reduction
 
     where out is a A,B,...,N,N matrix. While in principle this does not require vectors of different length, it is not tested
@@ -80,4 +81,29 @@ def broadcast_outer(a,b):
         outer product matrix
     """
 
-    return np.einsum('...i,...j->...ij',a,b)
+    return np.einsum('...i,...j->...ij', a, b)
+
+
+def condition_number(matrix):
+    """returns the condition number of a matrix. Useful for quantifying the quality
+    of a polarimeter.
+
+    Parameters
+    ----------
+    matrix : numpy.ndarray
+        array containing the matrices to evaluate in the last two dimensions
+
+    Returns
+    -------
+    numpy.ndarray
+        condition number
+    """
+
+    minv = np.linalg.pinv(matrix)
+
+    # compute maximum norm https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
+    norm = np.linalg.norm(matrix, ord=np.inf)
+    ninv = np.linalg.norm(minv, ord=np.inf)
+
+    return norm * ninv
+

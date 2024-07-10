@@ -1,14 +1,16 @@
 import numpy as np
 from .katsu_math import broadcast_outer
 
-def _empty_mueller(shape):
-    """Returns an empty array to populate with Mueller matrix elements.
+
+def _empty_stokes(shape):
+    """Returns an empty array to populate with Stokes vector elements.
 
     Parameters
     ----------
     shape : list
-        shape to prepend to the mueller matrix array. shape = [32,32] returns an array of shape [32,32,2,2]
-        where the matrix is assumed to be in the last indices. Defaults to None, which returns a 2x2 array.
+        shape to prepend to the stokes array. shape = [32,32] returns
+        an array of shape [32,32,4,1] where the vector is assumed to be in the
+        last indices. Defaults to None, which returns a 4x1 array.
 
     Returns
     -------
@@ -17,7 +19,78 @@ def _empty_mueller(shape):
 
     Notes
     -----
-    The structure of this function was taken from prysm.x.polarization, which was written by Jaren Ashcraft
+    The structure of this function was taken from prysm.x.polarization,
+    which was written by Jaren Ashcraft
+    """
+
+    if shape is None:
+
+        shape = (4, 1)
+
+    else:
+
+        shape = (*shape, 4, 1)
+
+    return np.zeros(shape)
+
+
+def stokes_from_parameters(I, Q, U, V, shape=None):
+    """Generates a stokes vector array from the stokes parameters
+
+    Parameters
+    ----------
+    I : float or numpy.ndarray
+        Stokes parameter corresponding to intensity, must be float
+        or numpy.ndarray with shape == `shape`
+    Q : float or numpy.ndarray
+        Stokes parameter corresponding to H/V polarization, must be float
+        or numpy.ndarray with shape == `shape`
+    U : float or numpy.ndarray
+        Stokes parameter corresponding to +45/-45 polarization, must be float
+        or numpy.ndarray with shape == `shape`
+    V : float or numpy.ndarray
+        Stokes parameter corresponding to RHC/LHC polarization, must be float
+        or numpy.ndarray with shape == `shape`
+    shape : list
+        shape to prepend to the stokes array. shape = [32,32] returns
+        an array of shape [32,32,4,1] where the vector is assumed to be in the
+        last indices. Defaults to None, which returns a 4x1 array.
+
+    Returns
+    -------
+    numpy.ndarray
+        array of stokes vectors
+    """
+
+    stokes = _empty_stokes(shape)
+    stokes[..., 0, 0] = I
+    stokes[..., 1, 0] = Q
+    stokes[..., 2, 0] = U
+    stokes[..., 3, 0] = V
+
+    return stokes
+
+
+
+def _empty_mueller(shape):
+    """Returns an empty array to populate with Mueller matrix elements.
+
+    Parameters
+    ----------
+    shape : list
+        shape to prepend to the mueller matrix array. shape = [32,32] returns
+        an array of shape [32,32,4,4] where the matrix is assumed to be in the
+        last indices. Defaults to None, which returns a 4x4 array.
+
+    Returns
+    -------
+    numpy.ndarray
+        The zero array of specified shape
+
+    Notes
+    -----
+    The structure of this function was taken from prysm.x.polarization,
+    which was written by Jaren Ashcraft
     """
 
     if shape is None:
@@ -30,15 +103,18 @@ def _empty_mueller(shape):
 
     return np.zeros(shape)
 
+
 def linear_polarizer(a, shape=None):
     """returns a homogenous linear polarizer
 
     Parameters
     ----------
     a : float, or numpy.darray
-        angle of the transmission axis w.r.t. horizontal in radians. If numpy array, must be the same shape as `shape`
+        angle of the transmission axis w.r.t. horizontal in radians. If numpy
+        array, must be the same shape as `shape`
     shape : list, optional
-        shape to prepend to the mueller matrix array, see `_empty_mueller`. by default None
+        shape to prepend to the mueller matrix array, see `_empty_mueller`. by
+        default None
 
     Returns
     -------
@@ -50,25 +126,13 @@ def linear_polarizer(a, shape=None):
     M = _empty_mueller(shape)
 
     ones = np.ones_like(a)
-    zeros = np.zeros_like(a)
     cos2a = np.cos(2 * a)
     sin2a = np.sin(2 * a)
 
-    M01 = np.cos(2*a)
-    M02 = np.sin(2*a)
-
-    M10 = np.cos(2*a)
-    M11 = np.cos(2*a)**2
-    M12 = np.cos(2*a)*np.sin(2*a)
-    
-    M20 = np.sin(2*a)
-    M21 = np.cos(2*a)*np.sin(2*a)
-    M22 = np.sin(2*a)**2
-
     # fist row
     M[..., 0, 0] = ones
-    M[..., 0, 1] = M01
-    M[..., 0, 2] = M02
+    M[..., 0, 1] = cos2a
+    M[..., 0, 2] = sin2a
 
     # second row
     M[..., 1, 0] = cos2a
@@ -80,10 +144,10 @@ def linear_polarizer(a, shape=None):
     M[..., 2, 1] = cos2a * sin2a
     M[..., 2, 2] = sin2a**2
 
-    # Apply Malus' law directly to the forehead
-    M /= 2  
+    M /= 2
 
     return M
+
 
 def linear_retarder(a, r, shape=None):
     """returns a homogenous linear retarder
@@ -91,11 +155,14 @@ def linear_retarder(a, r, shape=None):
     Parameters
     ----------
     a : float, or numpy.ndarray
-        angle of the fast axis w.r.t. horizontal in radians. If numpy array, must 1D
+        angle of the fast axis w.r.t. horizontal in radians. If numpy array,
+        must be 1D
     r : float, or numpy.ndarray
-        retardance in radians. If numpy array, must be the same shape as `shape`
+        retardance in radians. If numpy array, must be the same shape as
+        `shape`
     shape : list, optional
-        shape to prepend to the mueller matrix array, see `_empty_mueller`. by default None
+        shape to prepend to the mueller matrix array, see `_empty_mueller`.
+        by default None
 
     Returns
     -------
@@ -192,6 +259,7 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     return M
 
+
 def decompose_diattenuator(M):
     """Decompose M into a diattenuator using the Polar decomposition
 
@@ -283,7 +351,8 @@ def decompose_retarder(M, return_all=False):
         return Mr, Md 
     else:
         return Mr
-    
+
+
 def decompose_depolarizer(M, return_all=False):
     """Decompose M into a depolarizer using the Polar decomposition
 
@@ -362,6 +431,7 @@ def decompose_depolarizer(M, return_all=False):
     
     else:
         return M_depolarizer
+
 
 def mueller_to_jones(M):
     """Converts Mueller matrix to a relative Jones matrix. Phase aberration is relative to the Pxx component.
