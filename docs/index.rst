@@ -26,6 +26,7 @@ Summary
    notebooks/FullMuellerExample.ipynb
    notebooks/BroadcastedPolarimetry.ipynb
    notebooks/PolarDecomposition.ipynb
+   notebooks/DemoAgilisMotion.ipynb
 
 
 

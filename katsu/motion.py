@@ -1,21 +1,19 @@
 """Wrappers around Pyserial instances"""
 import numpy as np # uses true numpy
-
 from serial.serialutil import (
-    PARITY_NONE, 
-    PARITY_EVEN, 
-    PARITY_ODD, 
-    PARITY_MARK, 
+    PARITY_NONE,
+    PARITY_EVEN,
+    PARITY_ODD,
+    PARITY_MARK,
     PARITY_SPACE
 )
-
 import serial
 
 class BaseRotationStage:
 
     def __init__(self, port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding, timeout):
         """init a rotation stage for motion control
-        
+
         Notes:
         ------
         This was based on the required input for an AGILIS AG-UC8 motion controller, and
@@ -52,7 +50,7 @@ class BaseRotationStage:
                                                   parity=parity,
                                                   stopbits=stop_bits,
                                                   timeout=timeout)
-        
+
         self.termination_character = termination_character
         self.encoding = encoding
 
@@ -115,7 +113,7 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
         out = self.serial_communication.readline()
-        
+
         return out
 
     def start_jog_motion(self, jog_mode):
@@ -153,7 +151,7 @@ class AgilisRotationStage(BaseRotationStage):
         out = self.serial_communication.readline()
 
         return out
-    
+
     def measure_current_position(self):
         """starts a process to measure current position. Interrupts USB communication 
         during the process. This can last up to 2 minutes
@@ -166,7 +164,6 @@ class AgilisRotationStage(BaseRotationStage):
 
         return out
 
-
     def set_mode_local(self):
         """sets to local mode, where only status queries are allowed
         """
@@ -174,7 +171,6 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = 'ML' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-
 
     def set_mode_remote(self):
         """sets to local mode, where status queries and motion control are allowed
@@ -200,13 +196,11 @@ class AgilisRotationStage(BaseRotationStage):
         ----------
         jog_mode : int
             jog mode to begin motion
-        
         """
 
         commandstring = f'{self.axis} MV {jog_mode}' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-
 
     def absolute_move(self, target_position):
         """starts a process to move to an absolute position, this interrupts USB communication. 
@@ -227,7 +221,6 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-
     def get_current_target_position(self):
         """Returns current target position when using absolute move
         """
@@ -238,7 +231,6 @@ class AgilisRotationStage(BaseRotationStage):
         out = self.serial_communication.readline()
 
         return out
-    
 
     def tell_limit_status(self):
         """Returns the limits switch status of the controller, the returns are the following
@@ -253,7 +245,6 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-    
     def relative_move(self, steps):
         """Move relative to current position in steps whose amplitude are defined by the SU command
         (defaults to 16)
@@ -280,11 +271,10 @@ class AgilisRotationStage(BaseRotationStage):
     def stop_motion(self):
         """Stops the motion on the defined axis, sets state to be ready
         """
-        
+
         commandstring = f'{self.axis} ST' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
-
 
     def set_step_amplitude(self, amplitude):
         """Sets step amplitude in positive and negative direction.
@@ -307,12 +297,11 @@ class AgilisRotationStage(BaseRotationStage):
         amplitude = int(np.abs(amplitude))
         if amplitude > 50:
             amplitude = 50
-        
+
         commandstring = f'{self.axis} SU {amplitude}' + self.termination_character
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
 
-    
     def get_step_amplitude(self):
         """Returns the current step amplitude, should be in the range -50 to 50
         """
@@ -323,8 +312,7 @@ class AgilisRotationStage(BaseRotationStage):
         out = self.serial_communication.readline()
 
         return out
-    
-    
+
     def get_previous_command_error(self):
         """get the error of the previous command,
 
@@ -347,7 +335,6 @@ class AgilisRotationStage(BaseRotationStage):
         out = self.serial_communication.readline()
 
         return out
-    
 
     def get_number_of_steps(self):
         """Returns the number of accumullated steps in the forward direction minus the
@@ -359,9 +346,9 @@ class AgilisRotationStage(BaseRotationStage):
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
         out = self.serial_communication.readline()
-        
+ 
         return out
-    
+
     def get_axis_status(self):
         """Returns the status of the axis
 
@@ -380,7 +367,6 @@ class AgilisRotationStage(BaseRotationStage):
         out = self.serial_communication.readline()
 
         return out
-
 
     def zero_position(self):
         """resets the step counter to zero
@@ -401,11 +387,11 @@ class AgilisRotationStage(BaseRotationStage):
     @property
     def angular_offset(self):
         return self._angular_offset
-    
+
     @angular_offset.setter
     def angular_offset(self, value):
         self.angular_offset = value
-    
+
     def compute_angular_position(self):
         outstring = self.get_number_of_steps().decode(self.encoding)
         _, TP, parsed_outstring = outstring.partition('TP') # get the number and termination char
@@ -416,14 +402,7 @@ class AgilisRotationStage(BaseRotationStage):
     @property
     def angular_position(self):
         return self._angular_position
-    
+
     @angular_position.setter
     def angular_position(self, value):
         self._angular_position = value
-
-
-    
-
-
-
-
