@@ -7,8 +7,8 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
                              return_condition_number=False,
                              Min=None,
                              starting_angles={'psg_polarizer': 0,
-                                              'psg_qwp': 0,
-                                              'psa_qwp': 0,
+                                              'psg_waveplate': 0,
+                                              'psa_waveplate': 0,
                                               'psa_polarizer': 0},
                              starting_polarization={'psg_Tmin': 0,
                                                     'psg_ret': np.pi / 2,
@@ -43,8 +43,8 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
         Keys are:
         -------------------------------------------
         psg_polarizer = polarization state generator polarizer angle
-        psg_qwp = polarization state generator quarter wave plate angle
-        psa_polarizer = polarization state analyzer polarizer angle
+        psg_waveplate = polarization state generator quarter wave plate angle
+        psa_waveplate = polarization state analyzer polarizer angle
         psa_qwp = polarization state analyzer quarter wave plate angle
 
 
@@ -68,23 +68,20 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
 
     psg_tmin = starting_polarization['psg_Tmin']
     psg_ret = starting_polarization['psg_ret']
-    psg_theta = starting_angles['psg_qwp'] + psg_angles
+    psg_theta = starting_angles['psg_waveplate'] + psg_angles
 
     psa_tmin = starting_polarization['psa_Tmin']
     psa_ret = starting_polarization['psa_ret']
-    psa_theta = starting_angles['psa_qwp'] + psa_angles
+    psa_theta = starting_angles['psa_waveplate'] + psa_angles
 
     psg_qwp = linear_retarder(psg_theta, psg_ret, shape=[*frame_shape, nmeas])
-    
     psg_hpl = linear_diattenuator(starting_angles['psg_polarizer'],
                                   Tmin=psg_tmin, shape=[*frame_shape, nmeas])
 
     psa_qwp = linear_retarder(psa_theta, psa_ret, shape=[*frame_shape, nmeas])
-
     psa_hpl = linear_diattenuator(starting_angles['psa_polarizer'],
                                   Tmin=psa_tmin, shape=[*frame_shape, nmeas])
-    
-    Mg =  psg_qwp @ psg_hpl
+    Mg = psg_qwp @ psg_hpl
     Ma = psa_hpl @ psa_qwp
 
     PSA = Ma[..., 0, :]
@@ -102,7 +99,7 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
 
     return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
 
-    
+ 
 def stokes_sinusoid(theta, a0, b2, a4, b4):
     """sinusoidal response of a single rotating retarder full stokes
     polarimeter.
@@ -155,7 +152,6 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
 
     # Retarder needs to rotate 2pi, break up by nmeas
     th = thetas
-    thp = np.linspace(0, 2*np.pi, 101)
 
     for i in range(nmeas):
 
@@ -171,13 +167,10 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
         else:
             Pmat[i] = np.dot(analyzer, Sin)
 
-        # Optionally, add some photon noise
-
-
     popt, pcov = curve_fit(stokes_sinusoid,
                            th,
                            Pmat,
-                           p0 = (1, 1, 1, 1))
+                           p0=(1, 1, 1, 1))
 
     a0 = popt[0]
     b2 = popt[1]
@@ -186,9 +179,9 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
 
     # Compute the Stokes Vector
     S0 = 2*(a0 - a4)
-    S1 = 4*a4
-    S2 = 4*b4
-    S3 = -2*b2
+    S1 = 4 * a4
+    S2 = 4 * b4
+    S3 = -2 * b2
 
     if return_coeffs:
         return np.array([S0, S1, S2, S3]), popt
