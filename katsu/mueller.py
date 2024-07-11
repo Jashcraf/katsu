@@ -549,6 +549,96 @@ def mueller_to_jones(M):
     return J
 
 
+def depolarizer_index(Md):
+
+    M00 = Md[...,0,0]
+    sum_M = np.sum(np.sum(Md**2, axis=-1), axis=-1)
+    DI = np.sqrt(sum_M - M00**2) / (np.sqrt(3) * M00)
+
+    return DI
+
+
+def retardance_from_mueller(M):
+    """compute the total retardance from a Mueller matrix
+
+    Eq. 6.21 in CLY
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        array containing Mueller matrices in the last two dimensions
+
+    Returns
+    -------
+    numpy.ndarray
+        retardance of the Mueller matrices
+    """
+
+    tracem = np.trace(M, axis1=-1, axis2=-2) / 2
+    retardance = np.arccos(tracem - 1)
+
+    return retardance
+
+def retardance_parameters_from_mueller(M, tol=1e-10):
+    """compute the retardance decomposed into horizontal, +45, and circular parameters
+
+    Eq. 6.30 in CLY
+
+    TODO: Investigate if this is actually the correct order of parameters,
+    I think that horizontal and right-circular might be flipped in the text
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        array containing Mueller matrices in the last two dimensions
+    tol : float
+        tolerance for considering the sin(retardance) to be zero. This is important
+        for nearly half-wave pure retarders. Defaults to 1e-10.
+
+    Returns
+    -------
+    numpy.ndarray, numpy.ndarray, numpy.ndarray
+        arrays corresponding to horizontal, +45, and RC retardance
+    """
+    
+    retardance = retardance_from_mueller(M)
+    sinr = np.sin(retardance)
+
+    if np.abs(sinr) < tol:
+        horizontal_retardance = np.pi * np.sqrt((M[..., 1, 1] + 1) / 2)
+        p45_retardance = np.pi * np.sign(M[..., 1, 2]) * np.sqrt((M[..., 2, 2] + 1) / 2)
+        rightcircular_retardance = np.pi * np.sign(M[..., 1, 3]) * np.sqrt((M[..., 3, 3] + 1) / 2)
+    else:
+        front = retardance / (2 * sinr)
+
+        horizontal_retardance = front * (M[..., 2, 3] - M[..., 3, 2]) # M23 - M32
+        p45_retardance = front * (M[..., 3, 1] - M[..., 1, 3]) # M31 - M13
+        rightcircular_retardance = front * (M[..., 1, 2] - M[..., 2, 1])# M12 - M21
+
+    return horizontal_retardance, p45_retardance, rightcircular_retardance
+
+def diattenuation_parameters_from_mueller(M):
+
+    M00 = M[..., 0, 0]
+    M01 = M[..., 0, 1]
+    M02 = M[..., 0, 1]
+    M03 = M[..., 0, 1]
+
+    horizontal_diattenuation = M01 / M00
+    p45_diattenuation = M02 / M00
+    circular_diattenuation = M03 / M00
+
+    return horizontal_diattenuation, p45_diattenuation, circular_diattenuation
+
+def diattenuation_from_mueller(M):
+
+    dh, dp, dc = diattenuation_parameters_from_mueller(M)
+    d = np.sqrt(dh**2 + dp**2 + dc**2)
+
+    return d
+
+
+
 # The depreciated parent functions from when katsu was Observatory-Polarimetry
 def _linear_polarizer(a):
     """generates an ideal polarizer, depreciated
