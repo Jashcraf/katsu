@@ -25,6 +25,7 @@ Summary
    notebooks/FullStokesExample.ipynb
    notebooks/FullMuellerExample.ipynb
    notebooks/BroadcastedPolarimetry.ipynb
+   notebooks/PolarDecomposition.ipynb
 
 
 

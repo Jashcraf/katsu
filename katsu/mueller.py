@@ -71,7 +71,6 @@ def stokes_from_parameters(I, Q, U, V, shape=None):
     return stokes
 
 
-
 def _empty_mueller(shape):
     """Returns an empty array to populate with Mueller matrix elements.
 
@@ -102,6 +101,44 @@ def _empty_mueller(shape):
         shape = (*shape, 4, 4)
 
     return np.zeros(shape)
+
+
+def mueller_rotation(angle, shape=None):
+    """returns a Mueller rotation matrix
+
+    Parameters
+    ----------
+    angle : float, or numpy.darray
+        angle of the rotation w.r.t. horizontal in radians. If numpy
+        array, must be the same shape as `shape`
+    shape : list, optional
+        shape to prepend to the mueller matrix array, see `_empty_mueller`. by
+        default None
+
+    Returns
+    -------
+    numpy.ndarray
+        Mueller rotation matrix
+    """
+
+    M = _empty_mueller(shape)
+    cos2theta = np.cos(2 * angle)
+    sin2theta = np.sin(2 * angle)
+
+    if M.ndim > 2:
+        cos2theta = np.broadcast_to(cos2theta, [*M.shape[:-2]])
+        sin2theta = np.broadcast_to(sin2theta, [*M.shape[:-2]])
+
+    M[..., 0, 0] = 1
+    M[..., -1, -1] = 1
+
+    M[..., 1, 1] = cos2theta
+    M[..., 2, 2] = cos2theta
+
+    M[..., 1, 2] = sin2theta
+    M[..., 2, 1] = -sin2theta
+
+    return M
 
 
 def linear_polarizer(a, shape=None):
@@ -175,13 +212,12 @@ def linear_retarder(a, r, shape=None):
 
     # make sure everything is the right size
     if M.ndim > 2:
-        a = np.broadcast_to(a, [*M.shape[:-2]])
+        if isinstance(a, np.ndarray):
+            a = a  # leave it alone
+        else:
+            a = np.broadcast_to(a, [*M.shape[:-2]])
+
         r = np.broadcast_to(r, [*M.shape[:-2]])
-
-    # if isinstance(a, np.ndarray):
-        
-
-        # expand the Mueller Matrix
 
     # First row
     M[..., 0, 0] = 1.
@@ -192,15 +228,16 @@ def linear_retarder(a, r, shape=None):
     M[..., 1, 3] = -np.sin(r)*np.sin(2*a)
 
     # third row
-    M[..., 2, 1] = M[..., 1, 2] 
+    M[..., 2, 1] = M[..., 1, 2]
     M[..., 2, 2] = np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2
     M[..., 2, 3] = np.cos(2*a)*np.sin(r)
 
-    M[..., 3, 1] = -1 * M[..., 1, 3] # checked
-    M[..., 3, 2] = -1 * M[..., 2, 3] # checked
-    M[..., 3, 3] = np.cos(r) # checked
+    M[..., 3, 1] = -1 * M[..., 1, 3]
+    M[..., 3, 2] = -1 * M[..., 2, 3]
+    M[..., 3, 3] = np.cos(r)
 
     return M
+
 
 def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     """returns a homogenous linear diattenuator
@@ -210,11 +247,14 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     Parameters
     ----------
     a : float, or numpy.ndarray
-        angle of the transmission axis w.r.t. horizontal in radians. If numpy array, must be the same shape as `shape`
+        angle of the transmission axis w.r.t. horizontal in radians. If numpy
+        array, must be the same shape as `shape`
     Tmin : float, or numpy.ndarray
-        Minimum transmission of the state orthogonal to maximum transmission. If numpy array, must be the same shape as `shape`
+        Minimum transmission of the state orthogonal to maximum transmission. 
+        If numpy array, must be the same shape as `shape`
     shape : list, optional
-        shape to prepend to the mueller matrix array, see `_empty_mueller`. by default None
+        shape to prepend to the mueller matrix array, see `_empty_mueller`. 
+        By default None
 
     Returns
     -------
@@ -244,7 +284,7 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     # second row
     M[..., 1, 0] = M[..., 0, 1]
     M[..., 1, 1] = (A * cos2a**2) + (C * sin2a**2)
-    M[..., 1, 2] = (A - C) * cos2a * sin2a 
+    M[..., 1, 2] = (A - C) * cos2a * sin2a
 
     # third row
     M[..., 2, 0] = M[..., 0, 2]
@@ -255,7 +295,51 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     M[..., 3, 3] = C
 
     # Apply Malus' law directly to the forehead
-    M /= 2  
+    M /= 2
+
+    return M
+
+
+def depolarizer(angle, a, b, c, shape=None):
+    """returns a diagonal depolarizer
+
+    Parameters
+    ----------
+    angle : float, or numpy.ndarray
+        angle of the transmission axis w.r.t. horizontal in radians. If numpy
+        array, must be the same shape as `shape`
+    a : float or numpy.ndarray
+        depolarization of Q
+    a : float or numpy.ndarray
+        depolarization of U
+    a : float or numpy.ndarray
+        depolarization of V
+    shape : list, optional
+        shape to prepend to the mueller matrix array, see `_empty_mueller`.
+        By default None
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+
+    M = _empty_mueller(shape)
+    M_rot_in = mueller_rotation(-angle, shape=shape)
+    M_rot_out = mueller_rotation(angle, shape=shape)
+
+    # make sure everything is the right size
+    if M.ndim > 2:
+        a = np.broadcast_to(a, [*M.shape[:-2]])
+        b = np.broadcast_to(b, [*M.shape[:-2]])
+        c = np.broadcast_to(c, [*M.shape[:-2]])
+
+    M[..., 0, 0] = 1
+    M[..., 1, 1] = a
+    M[..., 2, 2] = b
+    M[..., 3, 3] = c
+
+    M = M_rot_out @ M @ M_rot_in
 
     return M
 
@@ -285,7 +369,6 @@ def decompose_diattenuator(M):
         diattenuation_vector = M[..., 0, 1:] / T
 
     D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
-    # D /= np.max(D)
     mD = np.sqrt(1 - D**2)
 
     if M.ndim > 2:
@@ -293,7 +376,6 @@ def decompose_diattenuator(M):
     else:
         diattenutation_norm = diattenuation_vector / D
 
-    # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
     DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
 
     # create diattenuator
@@ -303,7 +385,7 @@ def decompose_diattenuator(M):
         I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
         mD = mD[..., np.newaxis, np.newaxis]
 
-    inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
+    inner_diattenuator = mD * I + (1 - mD) * DD  # Eq. 19 Lu & Chipman
 
     Md = _empty_mueller(M.shape[:-2])
 
@@ -320,13 +402,14 @@ def decompose_diattenuator(M):
 
     return Md
 
+
 def decompose_retarder(M, return_all=False):
     """Decompose M into a retarder using the Polar decomposition
 
     from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
 
-    Note: this doesn't work if the diattenuation can be described by a pure polarizer,
-    because the matrix is singular and therefore non-invertible
+    Note: this doesn't work if the diattenuation can be described by a pure
+    polarizer, because the matrix is singular and therefore non-invertible
 
     Parameters
     ----------
@@ -343,12 +426,12 @@ def decompose_retarder(M, return_all=False):
     """
 
     Md = decompose_diattenuator(M)
-    
+
     # Then, derive the retarder
     Mr = M @ np.linalg.inv(Md)
 
     if return_all:
-        return Mr, Md 
+        return Mr, Md
     else:
         return Mr
 
@@ -363,8 +446,9 @@ def decompose_depolarizer(M, return_all=False):
      M : numpy.ndarray
         Mueller Matrix to decompose
     return_all : bool
-        Whether to return the depolaarizer, retarder and diattenuator 
-        vs just the retarder. Defaults to False, which returns just the depolarizer
+        Whether to return the depolaarizer, retarder and diattenuator
+        vs just the retarder. Defaults to False, which returns just the
+        depolarizer
 
     Returns
     -------
@@ -375,7 +459,7 @@ def decompose_depolarizer(M, return_all=False):
     # NOTE: The result is not a pure retarder, but uses the same operation
     if return_all:
         Mp, M_diattenuator = decompose_retarder(M, return_all=return_all)
-    
+
     else:
         Mp = decompose_retarder(M, return_all=return_all)
 
@@ -394,10 +478,9 @@ def decompose_depolarizer(M, return_all=False):
     e3 = np.sqrt(evals[..., 2])
 
     if M.ndim > 2:
-        e1 = e1[...,np.newaxis,np.newaxis]
-        e2 = e2[...,np.newaxis,np.newaxis]
-        e3 = e3[...,np.newaxis,np.newaxis]
-
+        e1 = e1[..., np.newaxis, np.newaxis]
+        e2 = e2[..., np.newaxis, np.newaxis]
+        e3 = e3[..., np.newaxis, np.newaxis]
 
     e1e2 = e1 * e2
     e2e3 = e2 * e3
@@ -428,13 +511,14 @@ def decompose_depolarizer(M, return_all=False):
         M_retarder = np.linalg.inv(M_depolarizer) @ Mp
 
         return M_depolarizer, M_retarder, M_diattenuator
-    
+
     else:
         return M_depolarizer
 
 
 def mueller_to_jones(M):
-    """Converts Mueller matrix to a relative Jones matrix. Phase aberration is relative to the Pxx component.
+    """Converts Mueller matrix to a relative Jones matrix. Phase aberration is
+    relative to the Pxx component.
 
     Returns
     -------
@@ -451,9 +535,9 @@ def mueller_to_jones(M):
     pyy = np.sqrt((M[0, 0] - M[0, 1] - M[1, 0] + M[1, 1]) / 2)
 
     txx = 0  # This phase is not determined
-    txy = -np.arctan2((M[0, 3] + M[1, 3]) , (M[0, 2] + M[1, 2]))
-    tyx = np.arctan2((M[3, 0] + M[3, 1]) , (M[2, 0] + M[2, 1]))
-    tyy = np.arctan2((M[3, 2] - M[2, 3]) , (M[2, 2] + M[3, 3]))
+    txy = -np.arctan2((M[0, 3] + M[1, 3]), (M[0, 2] + M[1, 2]))
+    tyx = np.arctan2((M[3, 0] + M[3, 1]), (M[2, 0] + M[2, 1]))
+    tyy = np.arctan2((M[3, 2] - M[2, 3]), (M[2, 2] + M[3, 3]))
 
     J = np.array(
         [

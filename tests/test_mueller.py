@@ -1,9 +1,11 @@
 from katsu.katsu_math import np, broadcast_outer
 from katsu.mueller import (
     _empty_mueller,
+    mueller_rotation,
     linear_polarizer,
     linear_retarder,
     linear_diattenuator,
+    depolarizer,
     decompose_diattenuator,
     decompose_retarder,
     decompose_depolarizer
@@ -22,6 +24,29 @@ def test_empty_mueller_broadcast():
     M = _empty_mueller([32, 32])
 
     np.testing.assert_allclose(M.shape,[32, 32, 4, 4])
+
+def test_mueller_rotation():
+
+    test = np.array([[1, 0, 0, 0],
+                     [0, 1, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 0, 0, 1]])
+    
+    rotation = mueller_rotation(0)
+
+    np.testing.assert_allclose(rotation, test)
+
+def test_mueller_rotation_broadcast():
+    test = np.array([[1, 0, 0, 0],
+                     [0, 1, 0, 0],
+                     [0, 0, 1, 0],
+                     [0, 0, 0, 1]])
+    
+    test = np.broadcast_to(test, [32, 32, 4, 4])
+    rotation = mueller_rotation(0, shape=[32, 32])
+
+    np.testing.assert_allclose(rotation, test)
+    
 
 def test_linear_polarizer():
 
@@ -92,6 +117,17 @@ def test_linear_diattenuator():
     ppol_test = linear_diattenuator(np.pi/4, 0)
 
     np.testing.assert_allclose((hpol_test, ppol_test), (hpol, ppol), atol=1e-12)
+
+def test_depolarizer():
+    a, b, c = 0.9, 0.4, 0.1
+    test = np.array([[1, 0, 0, 0],
+                     [0, a, 0, 0],
+                     [0, 0, b, 0],
+                     [0, 0, 0, c]])
+    
+    depol = depolarizer(0, a, b, c)
+
+    np.testing.assert_allclose(depol, test)
 
 def test_decompose_diattenuator():
 

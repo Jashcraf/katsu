@@ -1,5 +1,5 @@
 from .mueller import linear_retarder, linear_polarizer, linear_diattenuator
-from .katsu_math import broadcast_kron, broadcast_outer, np
+from .katsu_math import broadcast_kron, np
 from scipy.optimize import curve_fit
 
 
@@ -15,8 +15,7 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
                                                     'psa_Tmin': 0,
                                                     'psa_ret': np.pi / 2},
                              starting_anglestep={'psg_step': 1,
-                                                 'psa_step': 1},
-                            ):
+                                                 'psa_step': 1}):
     """conduct a full mueller polarimeter measurement from a series of power
     measurements
 
@@ -29,8 +28,9 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
         dimensions are spatial, and the last is temporal i.e. power[...,0] is
         the first measurement, power[...,0] is the second measurement
     angular_increment : float
-        The fractional angular increment that the PSA rotates compared to the PSG.
-        This can be computed by the ratio PSA_increment / PSG_increment. 
+        The fractional angular increment that the PSA rotates compared to
+        the PSG. This can be computed by the ratio
+        PSA_increment / PSG_increment.
     return_condition_number : bool, optional
         returns condition number of the data reduction matrix. by default False
     Min : numpy.ndarray
@@ -99,7 +99,7 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
 
     return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
 
- 
+
 def stokes_sinusoid(theta, a0, b2, a4, b4):
     """sinusoidal response of a single rotating retarder full stokes
     polarimeter.
@@ -137,8 +137,8 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     power : numpy.ndarray, optional
         powers measured on detector for each angle theta, by default None
     return_coeffs : bool, optional
-        option to return the stokes sinusoid coefficients. Useful for evaluating
-        curve fit quality. by default None
+        option to return the stokes sinusoid coefficients. Useful for
+        evaluating curve fit quality. by default None
 
     Returns
     -------
