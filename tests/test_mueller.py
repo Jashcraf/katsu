@@ -8,7 +8,14 @@ from katsu.mueller import (
     depolarizer,
     decompose_diattenuator,
     decompose_retarder,
-    decompose_depolarizer
+    decompose_depolarizer,
+    mueller_to_jones,
+    depolarization_index,
+    retardance_from_mueller,
+    retardance_parameters_from_mueller,
+    diattenuation_from_mueller,
+    diattenuation_parameters_from_mueller
+
 )
 
 def test_empty_mueller():
@@ -169,3 +176,50 @@ def test_decompose_depolarizer():
     Md = decompose_depolarizer(Mtot)
 
     np.testing.assert_allclose(Md, depol, atol=1e-12)
+
+def test_mueller_to_jones():
+    
+    jones = np.array([[1, 0],[0, 0]])  # h polarizer
+    mueller = linear_polarizer(0)
+
+    jones_test = mueller_to_jones(mueller)
+
+    np.testing.assert_allclose(jones, jones_test)
+
+def test_depolarization_index():
+
+    M = linear_polarizer(0)
+    DI = depolarization_index(M)
+
+    np.testing.assert_allclose(DI, 1.)
+
+def test_retardance_from_mueller():
+
+    retardance = np.pi / 2
+    M = linear_retarder(0, retardance)
+    R = retardance_from_mueller(M)
+
+    np.testing.assert_allclose(R, retardance)
+
+def test_retardance_parameters_from_mueller():
+
+    retardance = np.pi / 2
+    M = linear_retarder(0, retardance)
+    rh, rp, rc = retardance_parameters_from_mueller(M)
+
+    np.testing.assert_allclose((rh, rp, rc), (retardance, 0., 0.))
+
+
+def test_diattenuation_from_mueller():
+
+    M = linear_polarizer(0)
+    D = diattenuation_from_mueller(M)
+
+    np.testing.assert_allclose(D, 1.)
+
+def test_diattenuation_parameters_from_mueller():
+
+    M = linear_polarizer(0)
+    dh, dp, dc = diattenuation_parameters_from_mueller(M)
+
+    np.testing.assert_allclose((dh, dp, dc), (1., 0., 0.))

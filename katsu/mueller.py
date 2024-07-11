@@ -549,9 +549,23 @@ def mueller_to_jones(M):
     return J
 
 
-def depolarizer_index(Md):
+def depolarization_index(Md):
+    """compute the depolarization index from a Mueller Matrix
 
-    M00 = Md[...,0,0]
+    Eq. 6.79 in CLY
+
+    Parameters
+    ----------
+    Md : numpy.ndarray
+        depolarizer to compute the DI of
+
+    Returns
+    -------
+    numpy.ndarray
+        depolarization index
+    """
+
+    M00 = Md[..., 0, 0]
     sum_M = np.sum(np.sum(Md**2, axis=-1), axis=-1)
     DI = np.sqrt(sum_M - M00**2) / (np.sqrt(3) * M00)
 
@@ -579,13 +593,16 @@ def retardance_from_mueller(M):
 
     return retardance
 
+
 def retardance_parameters_from_mueller(M, tol=1e-10):
     """compute the retardance decomposed into horizontal, +45, and circular parameters
 
     Eq. 6.30 in CLY
 
     TODO: Investigate if this is actually the correct order of parameters,
-    I think that horizontal and right-circular might be flipped in the text
+    I think that horizontal and right-circular might be flipped in the text. 
+    Here lies the version which passes the physical test in test_mueller.py,
+    so I believe the textboook is wrong.
 
     Parameters
     ----------
@@ -600,7 +617,7 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
     numpy.ndarray, numpy.ndarray, numpy.ndarray
         arrays corresponding to horizontal, +45, and RC retardance
     """
-    
+
     retardance = retardance_from_mueller(M)
     sinr = np.sin(retardance)
 
@@ -617,12 +634,26 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
 
     return horizontal_retardance, p45_retardance, rightcircular_retardance
 
+
 def diattenuation_parameters_from_mueller(M):
+    """compute diattenuation decomposed into horizontal, +45, and circular parameters
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        array containing Mueller matrices in the last two dimensions
+
+    Returns
+    -------
+    numpy.ndarray, numpy.ndarray, numpy.ndarray
+        arrays corresponding to horizontal, +45, and RC diattenuation
+    
+    """
 
     M00 = M[..., 0, 0]
     M01 = M[..., 0, 1]
-    M02 = M[..., 0, 1]
-    M03 = M[..., 0, 1]
+    M02 = M[..., 0, 2]
+    M03 = M[..., 0, 3]
 
     horizontal_diattenuation = M01 / M00
     p45_diattenuation = M02 / M00
@@ -630,13 +661,27 @@ def diattenuation_parameters_from_mueller(M):
 
     return horizontal_diattenuation, p45_diattenuation, circular_diattenuation
 
+
 def diattenuation_from_mueller(M):
+    """compute the total diattenuation from a Mueller matrix
+
+    Eq. 6.21 in CLY
+
+    Parameters
+    ----------
+    M : numpy.ndarray
+        array containing Mueller matrices in the last two dimensions
+
+    Returns
+    -------
+    numpy.ndarray
+        diattenuation of the Mueller matrices
+    """
 
     dh, dp, dc = diattenuation_parameters_from_mueller(M)
     d = np.sqrt(dh**2 + dp**2 + dc**2)
 
     return d
-
 
 
 # The depreciated parent functions from when katsu was Observatory-Polarimetry
