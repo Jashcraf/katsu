@@ -1,5 +1,5 @@
 ---
-title: 'Katsu: A Python package for laboratory Mueller and Stokes polarimetry'
+title: 'Katsu: A Python package for Mueller and Stokes simulation and polarimetry'
 tags:
   - Python
   - astronomy
@@ -17,15 +17,18 @@ authors:
   - name: Manxuan Zhang
     affiliation: 3
   - name: Ewan S. Douglas
+    orcid: 0000-0002-0813-4308
     equal-contrib: true # (This is how you can denote equal contributions between multiple authors)
     affiliation: 2
   - name: Ramya M. Anche
+    orcid: 0000-0002-4989-6253
     equal-contrib: true
     affiliation: 2
   - name: Emory Jenkins
     equal-contrib: true
-    affiliation: 2
+    affiliation: "1, 2"
   - name: Maxwell A. Millar-Blanchaer
+    orcid: 0000-0001-6205-9233
     equal-contrib: true
     affiliation: 3
   
@@ -36,7 +39,7 @@ affiliations:
    index: 2
  - name: Department of Physics, University of California, Santa Barbara, USA
    index: 3
-date: 09 July 2024
+date: 11 July 2024
 bibliography: paper.bib
 ---
 
@@ -44,13 +47,15 @@ bibliography: paper.bib
 Polarimetric characterization in the laboratory is critical to the performance of astronomical instrumentation. The next generation of astronomical observatories has identified that wavefront errors induced by polarization, called _polarization aberrations_, could be a limiting factor in direct exoplanet imaging. Ample modeling has been done at the observatory level to understand the nominal polarization aberrations that arise in the telescope [@anche2023polarization;@gaudi2020habitable;@Will_polarization_luvoir] but less work has been done to characterize instrumentation in the laboratory.
 
 # Statement of need
-`Katsu` is an open-source Python package to address the need for polarimetric characterization of astronomical systems for the next generation of astronomy. It contains simple routines for the simulation of Mueller matrices and Stokes vectors. One area where `Katsu` is distinct from other excellent packages capable of Mueller calculus simulation (e.g., Pypol @pypol) is its emphasis on broadcasted matrix calculations. All Mueller matrices available in `katsu.mueller` take a `shape` keword that append an arbitrary number of axes to the front of the initialized array, with the final two axes containing the Mueller matrix. This functionality is critical for accelerated computating on spatial data, which enables the direct measurement of polarization aberrations in the lab @ashcraft2024. `Katsu` also features a `polarimetry` module containing the data reduction routines for single-rotating retarder (SRR) Stokes polarimeters and dual-rotating retarder (DRR) Mueller polarimeters. In the pursuit of open-source instrumentation in the laboratory, `Katsu` also supports an interface to the Newport Agilis series rotation mounts in the `motion` module to assist with performing polarimetry with rotating retarders. 
+`Katsu` is an open-source Python package to address the need for polarimetric characterization of astronomical systems for the next generation of astronomy. It contains simple routines for the simulation of Mueller matrices and Stokes vectors. One area where `Katsu` is distinct from other excellent packages capable of Mueller calculus simulation (e.g., Pypol [@pypol]) is its emphasis on broadcasted matrix calculations. All Mueller matrices available in `katsu.mueller` take a `shape` keword that append an arbitrary number of axes to the front of the initialized array, with the final two axes containing the Mueller matrix. This functionality is critical for accelerated computating on spatial data, which enables the direct measurement of polarization aberrations in the lab [@ashcraft2024]. `Katsu` also features a `polarimetry` module containing the data reduction routines for single-rotating retarder (SRR) Stokes polarimeters and dual-rotating retarder (DRR) Mueller polarimeters. In the pursuit of open-source instrumentation in the laboratory, `Katsu` also supports an interface to the Newport Agilis series rotation mounts in the `motion` module to assist with performing polarimetry with rotating retarders. 
 
-To interpret the measurements made in the lab, `Katsu` features the polar decomposition of Mueller matrices published by Lu and Chipman @Lu:96s. This decomposes a Mueller matrix $\mathbf{M}$ into its constituent depolarizer $\mathbf{M_{\Delta}}$, diattenuator $\mathbf{M_{D}}$, and retarder $\mathbf{M_{R}}$, as shown in the following Equation,
+To interpret the measurements made in the lab, `Katsu` features the polar decomposition of Mueller matrices published by Lu and Chipman [@Lu:96s]. This decomposes a Mueller matrix $\mathbf{M}$ into its constituent depolarizer $\mathbf{M_{\Delta}}$, diattenuator $\mathbf{M_{D}}$, and retarder $\mathbf{M_{R}}$, as shown in the following Equation,
 
 $$\mathbf{M} = \mathbf{M_{\Delta}}\mathbf{M_{R}}\mathbf{M_{D}}. $$
 
-This function is critical for separating depolarization from the Mueller matrix, which enables the integration of polarization aberration in the laboratory into simulated data (generated by a polarization ray tracer, e.g. `Poke` @Ashcraft_2023, `Pyastropol` @Pruthvi.2020). `Katsu` also adopts the flexible interchangeable backend system of `prysm` [@Dube2019; @Dube:22] for hot-swappable `numpy`-like backends @harris2020array,s including `cupy` for GPU-accelerated computing @cupy_learningsys2017. 
+This function is critical for separating depolarization from the Mueller matrix, which enables the integration of polarization aberration in the laboratory into simulated data (generated by a polarization ray tracer, e.g. `Poke` [@Ashcraft_2023], `Pyastropol` [@Pruthvi.2020]). `Katsu` also adopts the flexible interchangeable backend system of `prysm` [@Dube2019;@Dube:22] for hot-swappable `numpy`-like backends [@harris2020array] including `cupy` for GPU-accelerated computing [@cupy_learningsys2017]. 
+
+`Katsu` has recently been used as the primary backend of the Gromit polarimeter at the UA Space Astrophysics Laboratory [@gromit], and used to measure the spatially-varying polarization aberrations of the Space Coronagraph Optical Bench (SCoOB) [@ashcraft2024]. The measurement and polarimetric data reduction capabilities available in `Katsu` enabled expeditious full Mueller polarimetry of an astronomical coronagraph testbed. In the future, we aim to add more polarimetric data reduction capabilities to `Katsu`, like a recently-published modification of DRRP data reduction to leverage insights from dual-channel polarimetry [@melby2024]. 
 
 # Acknowledgements
 This work was sponsored by a NASA Space Technology Graduate Research Opportunity.
