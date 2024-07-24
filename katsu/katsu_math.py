@@ -107,3 +107,40 @@ def condition_number(matrix):
 
     return norm * ninv
 
+
+M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+
+def RMS_calculator(calibration_matrix):
+    """Calculates the root mean square (RMS) error of a matrix by comparing it to the identity matrix.
+    Parameters
+    ----------
+    calibration_matrix : array
+        4x4 matrix.
+    Returns
+    -------
+    RMS : float
+        RMS error of the matrix."""
+    differences = []
+    for i in range(0, 4):
+        for j in range(0, 4):
+            differences.append(calibration_matrix[i, j]-M_identity[i, j])
+
+    differences_squared = [x**2 for x in differences]
+    RMS = np.sqrt(sum(differences_squared)/16)
+    return RMS
+
+
+# Calculate the retardance error by standard error propogation using RMS in the matrix elements from calibration
+def propagated_error(M_R, RMS):
+    """Propogates error in the Mueller matrix to error in the extracted value of retardance. 
+    Assumes the RMS error is the same for all elements of the matrix.
+    M_R : array
+        4x4 Mueller matrix for a linear retarder
+    RMS : float
+        root mean square error of the Mueller matrix.
+    Returns
+    ------- 
+        float, error in the extracted retardance value in radians."""
+    x = np.trace(M_R)
+    return 2*RMS/np.sqrt(4*x-x**2) # Value in radians

@@ -1,5 +1,5 @@
-from .mueller import linear_retarder, linear_polarizer, linear_diattenuator, _empty_mueller
-from .katsu_math import broadcast_kron, broadcast_outer, condition_number, np
+from .mueller import linear_retarder, linear_polarizer, linear_diattenuator, _empty_mueller, decompose_retarder
+from .katsu_math import broadcast_kron, broadcast_outer, condition_number, RMS_calculator, propagated_error, np
 from scipy.optimize import curve_fit
 
 
@@ -391,6 +391,7 @@ def q_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
         prediction[i] = float(C @ linear_retarder(5*t[i]+w2, np.pi/2+r2) @ M @ linear_retarder(t[i]+w1, np.pi/2+r1) @ linear_polarizer(a1) @ B)
     return prediction
 
+
 # Function that is useful for generating intensity values for a given sample matrix and offset parameters
 def I_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
     """Function to generate TOTAL intensity values measured with a given Mueller matrix and offset parameters.
@@ -423,6 +424,7 @@ def I_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
     for i in range(len(t)):
         prediction[i] = float(A  @ linear_retarder(5*t[i]+w2, np.pi/2+r2) @ M @ linear_retarder(t[i]+w1, np.pi/2+r1) @ linear_polarizer(a1) @ B)
     return prediction
+
 
 # Basically the same as above, but with an optional input matrix to simulate data
 def single_output_simulation_function(t, a1, a2, w1, w2, r1, r2, LPA_angle=0, M_in=None):
@@ -461,123 +463,6 @@ def single_output_simulation_function(t, a1, a2, w1, w2, r1, r2, LPA_angle=0, M_
         prediction[i] = float(A @ linear_polarizer(LPA_angle+a2) @ linear_retarder(5*t[i]+w2, np.pi/2+r2) @ M @ linear_retarder(t[i]+w1, np.pi/2+r1) @ linear_polarizer(a1) @ B)
     return prediction
 
-def RMS_calculator(calibration_matrix):
-    """Calculates the root mean square (RMS) error of a matrix by comparing it to the identity matrix.
-    Parameters
-    ----------
-    calibration_matrix : array
-        4x4 matrix.
-    Returns
-    -------
-    RMS : float
-        RMS error of the matrix."""
-    differences = []
-    for i in range(0, 4):
-        for j in range(0, 4):
-            differences.append(calibration_matrix[i, j]-M_identity[i, j])
-
-    differences_squared = [x**2 for x in differences]
-    RMS = np.sqrt(sum(differences_squared)/16)
-    return RMS
-
-
-# Calculate the retardance error by standard error propogation using RMS in the matrix elements from calibration
-def propagated_error(M_R, RMS):
-    """Propogates error in the Mueller matrix to error in the extracted value of retardance. 
-    Assumes the RMS error is the same for all elements of the matrix.
-    M_R : array
-        4x4 Mueller matrix for a linear retarder
-    RMS : float
-        root mean square error of the Mueller matrix.
-    Returns
-    ------- 
-        float, error in the extracted retardance value in radians."""
-    x = np.trace(M_R)
-    return 2*RMS/np.sqrt(4*x-x**2) # Value in radians
-
-def normalized_decompose_diattenuator(M):
-    """Decompose M into a diattenuator using the Polar decomposition from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
-    Gives normalized matrices
-    Parameters
-    ----------
-    M : numpy.ndarray
-        Mueller Matrix to decompose
-    Returns
-    -------
-    numpy.ndarray
-        Diattenuator component of mueller matrix
-    """
-    # First, determine the diattenuator
-    T = M[..., 0, 0]
-    if M.ndim > 2:
-        diattenuation_vector = M[..., 0, 1:] / T[..., np.newaxis]
-    else:
-        diattenuation_vector = M[..., 0, 1:] / T
-
-    D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
-    mD = np.sqrt(1 - D**2)
-
-    if M.ndim > 2:
-        diattenutation_norm = diattenuation_vector / D[..., np.newaxis]
-    else:
-        diattenutation_norm = diattenuation_vector / D
-
-    # DD = diattenutation_norm @ np.swapaxes(diattenutation_norm,-2,-1)
-    DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
-
-    # create diattenuator
-    I = np.identity(3)
-
-    if M.ndim > 2:
-        I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
-        mD = mD[..., np.newaxis, np.newaxis]
-
-    inner_diattenuator = mD * I + (1 - mD) * DD # Eq. 19 Lu & Chipman
-
-    Md = _empty_mueller(M.shape[:-2])
-
-    # Eq 18 Lu & Chipman
-    Md[..., 0, 0] = 1.
-    Md[..., 0, 1:] = diattenuation_vector
-    Md[..., 1:, 0] = diattenuation_vector
-    Md[..., 1:, 1:] = inner_diattenuator
-
-    if M.ndim > 2:
-        Md = Md * T[..., np.newaxis, np.newaxis]
-    else:
-        Md = Md * T
-    
-    Md = Md/np.max(np.abs(Md))   # remember to normalize the matrix
-
-    return Md
-
-def normalized_decompose_retarder(M, return_all=False):
-    """Decompose M into a retarder using the Polar decomposition from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
-    Note: this doesn't work if the diattenuation can be described by a pure polarizer,
-    because the matrix is singular and therefore non-invertible
-    Gives normalized matrices
-    Parameters
-    ----------
-    M : numpy.ndarray
-        Mueller Matrix to decompose
-    return_all : bool
-        Whether to return the retarder and diattenuator vs just the retarder.
-        Defaults to False, which returns both
-    Returns
-    -------
-    numpy.ndarray
-        Retarder component of mueller matrix
-    """
-    Md = normalized_decompose_diattenuator(M)
-    
-    # Then, derive the retarder
-    Mr = M @ np.linalg.inv(Md)
-    Mr = Mr/np.max(np.abs(Mr))   # remember to normalize the matrix
-
-    if return_all:
-        return Mr, Md 
-    else:
-        return Mr
 
 # The function that gives everything you want to know at once
 def q_ultimate_polarimetry(cal_angles, cal_vert_intensity, cal_hor_intensity, sample_angles, sample_vert_intensity, sample_hor_intensity):
@@ -633,8 +518,9 @@ def q_ultimate_polarimetry(cal_angles, cal_vert_intensity, cal_hor_intensity, sa
     np.set_printoptions(suppress=True) # Suppresses scientific notation, keeps decimal format
 
     # Use the polar decomposition of the retarder matrix 
-    r_decomposed_MSample = normalized_decompose_retarder(MSample)     
-    retardance = np.arccos(np.trace(normalized_decompose_retarder(r_decomposed_MSample))/2 - 1)/(2*np.pi) # Value in waves
+    r_decomposed_MSample = decompose_retarder(MSample, normalize=True)
+    # retardance = np.arccos(np.trace(normalized_decompose_retarder(r_decomposed_MSample))/2 - 1)/(2*np.pi) # Value in waves
+    retardance = np.arccos(np.trace(r_decomposed_MSample)/2 - 1)/(2*np.pi) # Value in waves
 
     Retardance_Error = propagated_error(r_decomposed_MSample, RMS_Error)
     
