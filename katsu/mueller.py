@@ -344,7 +344,7 @@ def depolarizer(angle, a, b, c, shape=None):
     return M
 
 
-def decompose_diattenuator(M):
+def decompose_diattenuator(M, normalize=False):
     """Decompose M into a diattenuator using the Polar decomposition
 
     from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
@@ -400,10 +400,13 @@ def decompose_diattenuator(M):
     else:
         Md = Md * T
 
-    return Md
+    if normalize:
+        return Md/np.max(np.abs(Md))
+    else:
+        return Md
 
 
-def decompose_retarder(M, return_all=False):
+def decompose_retarder(M, return_all=False, normalize=False):
     """Decompose M into a retarder using the Polar decomposition
 
     from Lu & Chipman 1996 https://doi.org/10.1364/JOSAA.13.001106
@@ -425,10 +428,18 @@ def decompose_retarder(M, return_all=False):
         Retarder component of mueller matrix
     """
 
-    Md = decompose_diattenuator(M)
+    if normalize:
+        Md = decompose_diattenuator(M, normalize=True)
+    else:
+        Md = decompose_diattenuator(M)
 
     # Then, derive the retarder
     Mr = M @ np.linalg.inv(Md)
+
+    if normalize:
+        Mr = Mr/np.max(np.abs(Mr))
+    else:
+        Mr = Mr
 
     if return_all:
         return Mr, Md
