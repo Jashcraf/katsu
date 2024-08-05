@@ -20,7 +20,7 @@ np = BackendShim(_np)
 
 
 def set_backend_to_numpy():
-    """Convenience method to automatically configure katsu's backend to cupy."""
+    """Convenience method to automatically configure katsu's backend to numpy."""
     import numpy as cp
 
     np._srcmodule = cp
