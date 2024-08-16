@@ -1,4 +1,3 @@
-import jax.numpy as jnp
 import pytest
 from katsu.katsu_math import (
     BackendShim,
@@ -18,7 +17,7 @@ except Exception:
     cupy_installed = False
 
 try:
-    import jax.numpy
+    import jax.numpy as jnp
     jax_installed = True
 
 except Exception:
