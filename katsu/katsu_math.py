@@ -21,9 +21,9 @@ np = BackendShim(_np)
 
 def set_backend_to_numpy():
     """Convenience method to automatically configure katsu's backend to numpy."""
-    import numpy as np
+    import numpy
 
-    np._srcmodule = np
+    np._srcmodule = numpy
 
     return
 
