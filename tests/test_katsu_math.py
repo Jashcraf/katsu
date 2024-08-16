@@ -1,4 +1,3 @@
-
 import jax.numpy as jnp
 import pytest
 from katsu.katsu_math import (
