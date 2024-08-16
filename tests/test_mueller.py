@@ -390,24 +390,23 @@ def test_decompose_retarder_jax():
 
     assert np.allclose(Mr, qwp, atol=1e-12)
 
-#TODO need to investigate jax calculation of eigenvalues
-# @pytest.mark.skipif(jax_installed is False, reason='jax not found') 
-# def test_decompose_depolarizer_jax():
+@pytest.mark.skipif(jax_installed is False, reason='jax not found') 
+def test_decompose_depolarizer_jax():
 
-#     # make a horizontal polarizer
-#     hpol = linear_diattenuator(0, 0.1)
-#     qwp = linear_retarder(np.pi/4,np.pi/2)
+    # make a horizontal polarizer
+    hpol = linear_diattenuator(0, 0.1)
+    qwp = linear_retarder(np.pi/4,np.pi/2)
 
-#     depol = np.array([[1., 0., 0., 0.],
-#                       [0., 0.9, 0., 0.],
-#                       [0., 0., 0.8, 0.],
-#                       [0., 0., 0., 0.7]])
+    depol = np.array([[1., 0., 0., 0.],
+                      [0., 0.9, 0., 0.],
+                      [0., 0., 0.8, 0.],
+                      [0., 0., 0., 0.7]])
     
-#     Mtot = depol @ qwp @ hpol
+    Mtot = depol @ qwp @ hpol
 
-#     Md = decompose_depolarizer(Mtot)
+    Md = decompose_depolarizer(Mtot)
     
-#     assert np.allclose(Md, depol, atol=1e-12)
+    assert np.allclose(Md, depol, atol=1e-12)
 
 @pytest.mark.skipif(jax_installed is False, reason='jax not found') 
 def test_mueller_to_jones_jax():
