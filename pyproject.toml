@@ -18,6 +18,9 @@ classifiers=[
     "Operating System :: OS Independent",
 ]
 
+[project.urls]
+Homepage = "katsu.readthedocs.io"
+
 [build-system]
 requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
