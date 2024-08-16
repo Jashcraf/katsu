@@ -454,7 +454,8 @@ def decompose_diattenuator(M, normalize=False):
         else:
             diattenuation_vector = M.at[..., 0, 1:].divide(T)
 
-        D = np.sqrt(np.sum(np.matmul(diattenuation_vector, diattenuation_vector), axis=-1))
+        # D = np.sqrt(np.sum(np.matmul(diattenuation_vector, diattenuation_vector), axis=-1))
+        D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
         mD = np.sqrt(1 - D.power(2))
 
         if M.ndim > 2:
