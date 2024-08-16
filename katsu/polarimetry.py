@@ -1,11 +1,11 @@
-from .mueller import linear_retarder, linear_polarizer, linear_diattenuator
+from .mueller import linear_retarder, linear_polarizer, linear_diattenuator, wollaston
 from .katsu_math import broadcast_kron, np
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
 
 
 def full_mueller_polarimetry(thetas, power, angular_increment,
-                             return_condition_number=False,
-                             Min=None,
+                             return_condition_number = False,
+                             Min = None,
                              starting_angles={'psg_polarizer': 0,
                                               'psg_waveplate': 0,
                                               'psa_waveplate': 0,
@@ -99,7 +99,6 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
 
     return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
 
-
 def stokes_sinusoid(theta, a0, b2, a4, b4):
     """sinusoidal response of a single rotating retarder full stokes
     polarimeter.
@@ -123,7 +122,6 @@ def stokes_sinusoid(theta, a0, b2, a4, b4):
         sinusoidal response of the SRRP
     """
     return a0 + b2*np.sin(2*theta) + a4*np.cos(4*theta) + b4*np.sin(4*theta)
-
 
 def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     """conduct a full stokes polarimeter measurement
@@ -178,7 +176,7 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     b4 = popt[3]
 
     # Compute the Stokes Vector
-    S0 = 2*(a0 - a4)
+    S0 = 2 * (a0 - a4)
     S1 = 4 * a4
     S2 = 4 * b4
     S3 = -2 * b2
@@ -188,6 +186,286 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     else:
         return np.array([S0, S1, S2, S3])
 
+# TODO: Figure out a way to get the dual_channel_polarimetry_function to use
+# this generalized function instead of separate sinusoidal fitting functions
+def dual_channel_sinusoid(theta, I, Q, U, theta_2 = None, 
+        method = "single_difference", normalized = False):
+    """
+    Calculate the sinusoidal response for a dual channel polarimetry setup.
+
+    Parameters
+    ----------
+    theta : float or ndarray
+        The angle(s) of the half-wave plate (HWP) in radians
+    I : float
+        Stokes I of the input Stokes vector
+    Q : float
+        Stokes Q of the input Stokes vector
+    U : float
+        Stokes U of the input Stokes vector
+    theta_2 : float or ndarray, optional
+        The angle(s) of the HWP for the previous measurement, required for 
+        the double difference method
+    method : str, optional
+        The differencing method to use, either "single_difference" or 
+        "double_difference". Default is "single_difference"
+    normalized : bool, optional
+        Whether the output should be normalized by the total intensity I. 
+        Default is False
+
+    Returns
+    -------
+    float or ndarray
+        the sinusoidal power based on the provided Stokes parameters, 
+        angles, and method
+
+    Raises
+    ------
+    ValueError
+        If `normalized=True` and `I` is not provided or if `theta_2` is 
+        required and not provided.
+    """
+
+    """Sinusoidal response for dual channel polarimetry."""
+
+    if method == "single_difference":
+        if normalized:
+            return (Q * np.cos(4 * theta) + U * np.sin(4 * theta)) / I
+        else:
+            return (Q * np.cos(4 * theta) + U * np.sin(4 * theta))
+    elif method == "double_difference":
+        if normalized:
+            return (Q * (np.cos(4 * theta) - np.cos(4 * theta_2)) + \
+                U * (np.sin(4 * theta) - np.sin(4 * theta_2)) / (2 * I))
+        else:
+            return (Q * (np.cos(4 * theta) - np.cos(4 * theta_2)) + \
+                U * (np.sin(4 * theta) - np.sin(4 * theta_2)))
+        
+def unnormalized_single_diff_sinusoid(theta, Q, U):
+    """
+    Calculate the unnormalized sinusoidal response for a single difference in 
+    dual channel polarimetry.
+
+    Parameters
+    ----------
+    theta : float or ndarray
+        The angle(s) of the half-wave plate (HWP) in radians
+    Q : float
+        Stokes Q of the input Stokes vector
+    U : float
+        Stokes U of the input Stokes vector
+
+    Returns
+    -------
+    float or ndarray
+        The output power response based on the provided Stokes parameters 
+        and angles
+    """
+    output_power = (Q * np.cos(4 * theta) + U * np.sin(4 * theta))
+    return output_power
+
+def unnormalized_double_diff_sinusoid(theta_1, theta_2, Q, U):
+    """
+    Calculate the unnormalized sinusoidal response for a double difference 
+    in dual channel polarimetry.
+
+    Parameters
+    ----------
+    theta_1 : float or ndarray
+        The angle(s) of the half-wave plate (HWP) in radians for the first 
+        measurement
+    theta_2 : float or ndarray
+        The angle(s) of the HWP in radians for the second measurement
+    Q : float
+        Stokes Q of the input Stokes vector
+    U : float
+        Stokes U of the input Stokes vector
+
+    Returns
+    -------
+    float or ndarray
+        The output power response based on the provided Stokes parameters 
+        and angles
+    """
+
+    output_power = (Q * (np.cos(4 * theta_2) - np.cos(4 * theta_1)) + \
+        U * (np.sin(4 * theta_2) - np.sin(4 * theta_1)))
+    return output_power
+
+# TODO: Test the implentation of normalized single difference
+def normalized_single_diff_sinusoid(theta, I, Q, U):
+    """
+    Calculate the normalized sinusoidal response for a single difference 
+    in dual channel polarimetry
+
+    Parameters
+    ----------
+    theta : float or ndarray
+        The angle(s) of the half-wave plate (HWP) in radians
+    Q : float
+        Stokes Q of the input Stokes vector
+    U : float
+        Stokes U of the input Stokes vector
+
+    Returns
+    -------
+    float or ndarray
+        The normalized output power response based on the provided Stokes 
+        parameters and angles.
+    """
+    
+    output_power = (Q * np.cos(4 * theta) + U * np.sin(4 * theta) / I)
+    return output_power
+
+# TODO: Test the implentation of normalized double difference
+def normalized_double_diff_sinusoid(theta_1, theta_2, I, Q, U):
+    """
+    Calculate the normalized sinusoidal response for a double difference 
+    in dual channel polarimetry.
+
+    Parameters
+    ----------
+    theta_1 : float or ndarray
+        The angle(s) of the half-wave plate (HWP) in radians for the first 
+        measurement
+    theta_2 : float or ndarray
+        The angle(s) of the HWP in radians for the second measurement.
+    I : float
+        Stokes I of the input Stokes vector
+    Q : float
+        Stokes Q of the input Stokes vector
+    U : float
+        Stokes U of the input Stokes vector
+
+    Returns
+    -------
+    float or ndarray
+        The normalized output power response based on the provided Stokes 
+        parameters and angles
+    """
+
+    output_power = (Q * (np.cos(4 * theta_1) - np.cos(4 * theta_2)) + \
+        U * (np.sin(4 * theta_1) - np.sin(4 * theta_2)) / (2 * I))
+    return output_power
+
+def dual_channel_polarimeter(thetas, S_in = None, power_o = None, 
+        power_e = None, normalized = False, sub_method = "single_difference"):
+    """
+    Simulate or analyze a dual channel polarimetry experiment using single 
+    or double differencing.
+
+    Parameters
+    ----------
+    thetas : ndarray
+        Array of angles (in radians) at which measurements were taken
+    S_in : ndarray, optional
+        The input Stokes vector [I, Q, U, V] to be measured. Default is None.
+    power_o : ndarray, optional
+        Measured power in the ordinary beam. Default is None.
+    power_e : ndarray, optional
+        Measured power in the extraordinary beam. Default is None.
+    normalized : bool, optional
+        Whether to normalize the response by the total intensity. 
+        Default is False
+    sub_method : str, optional
+        The differencing method to use, either "single_difference" or 
+        "double_difference". Default is "single_difference"
+
+    Returns
+    -------
+    ndarray
+        The fitted or propagated Stokes components [Q, U] based on the 
+        differencing and normalization method specified.
+
+    Raises
+    ------
+    ValueError
+        If required input data is missing or if invalid parameters are 
+        provided.
+    """
+
+    # Empty arrays for HWP angles and measured power
+    nmeas = len(thetas)
+    Pmat = np.zeros(nmeas)
+
+    # Empty arrays for Mueller matrices of the ordinary and extraordinary beams
+    M_o_beams = np.zeros((nmeas, 4, 4))
+    M_e_beams = np.zeros((nmeas, 4, 4))
+
+    for i in range(nmeas):
+        # Use the provided wollaston and linear_retarder functions
+        M_wollaston_o = wollaston(beam = 0)
+        M_wollaston_e = wollaston(beam = 1)
+
+        # Combined Mueller matrix of HWP and Wollaston prism
+        M_o_beams[i] = M_wollaston_o @ linear_retarder(thetas[i], np.pi)
+        M_e_beams[i] = M_wollaston_e @ linear_retarder(thetas[i], np.pi)
+
+        # Extracting power measurements to compute single and double differences
+        # or propagating input Stokes vector through the system
+        if power_o is not None and power_e is not None:
+            Pmat_o_current = power_o[i]
+            Pmat_e_current = power_e[i]
+            if i > 0:
+                Pmat_o_previous = power_o[i - 1]
+                Pmat_e_previous = power_e[i - 1]
+        elif S_in is not None:
+            Pmat_o_current = np.dot(M_o_beams[i][0, :], S_in)
+            Pmat_e_current = np.dot(M_e_beams[i][0, :], S_in)
+            if i > 0:
+                Pmat_o_previous = np.dot(M_o_beams[i - 1][0, :], S_in)
+                Pmat_e_previous = np.dot(M_e_beams[i - 1][0, :], S_in)
+
+        # Computing single and double differences
+        if sub_method == "single_difference":
+            if normalized:
+                Pmat[i] = (Pmat_o_current - Pmat_e_current) / \
+                    (Pmat_o_current + Pmat_e_current)
+            else:
+                Pmat[i] = Pmat_o_current - Pmat_e_current
+        elif sub_method == "double_difference":
+            if i == 0:
+                # Keep first measurement as is
+                if normalized:
+                    Pmat[i] = (Pmat_o_current - Pmat_e_current) / \
+                        (Pmat_o_current + Pmat_e_current)
+                else:
+                    Pmat[i] = Pmat_o_current - Pmat_e_current  
+            else:
+                if normalized:
+                    Pmat[i] = ((Pmat_o_current - Pmat_e_current) - \
+                        (Pmat_o_previous - Pmat_e_previous)) / \
+                        ((Pmat_o_current + Pmat_e_current) + \
+                        (Pmat_o_previous + Pmat_e_previous))
+                else:
+                    Pmat[i] = (Pmat_o_current - Pmat_e_current) - \
+                        (Pmat_o_previous - Pmat_e_previous)
+
+    # Fitting for Stokes Q and U for unnormalized single difference
+    if sub_method == "single_difference" and not normalized:
+        objective = lambda params: \
+            np.sum((unnormalized_single_diff_sinusoid(thetas, *params) - Pmat) ** 2)
+        
+        initial_guess = [0, 0]
+
+        result = minimize(objective, initial_guess)
+
+        Q_fit, U_fit = result.x
+
+        return np.array([1, Q_fit, U_fit, 0])
+    # Fitting for Stokes Q and U for normalized single difference
+    elif sub_method == "double_difference" and not normalized:
+        objective = lambda params: \
+            np.sum((unnormalized_double_diff_sinusoid(thetas[ : -1], 
+                thetas[1 : ], *params) - Pmat[1 : ]) ** 2)
+        
+        initial_guess = [0, 0]
+
+        result = minimize(objective, initial_guess)
+
+        Q_fit, U_fit = result.x
+
+        return np.array([1, Q_fit, U_fit, 0])
 
 def _full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
                              starting_angles={'psg_polarizer':0,
@@ -253,7 +531,7 @@ def _full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=N
     M = np.reshape(M,[4,4])
 
     if return_condition_number == True:
-        return M,condition_number(Wmat)
+        return M, condition_number(Wmat)
 
     else:
         return M
