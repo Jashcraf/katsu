@@ -7,7 +7,7 @@ class BackendShim:
 
     def __init__(self, src):
         self._srcmodule = src
-
+ 
     def __getattr__(self, key):
         if key == "_srcmodule":
             return self._srcmodule
@@ -20,10 +20,10 @@ np = BackendShim(_np)
 
 
 def set_backend_to_numpy():
-    """Convenience method to automatically configure katsu's backend to cupy."""
-    import numpy as cp
+    """Convenience method to automatically configure katsu's backend to numpy."""
+    import numpy
 
-    np._srcmodule = cp
+    np._srcmodule = numpy
 
     return
 
@@ -33,6 +33,14 @@ def set_backend_to_cupy():
     import cupy as cp
 
     np._srcmodule = cp
+
+    return
+
+def set_backend_to_jax(): 
+    """Convenience method to automatically configure katsu's backend to jax."""
+    import jax.numpy as jnp
+
+    np._srcmodule = jnp
 
     return
 
