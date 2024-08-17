@@ -12,6 +12,9 @@ authors:
     orcid: 0000-0001-5082-7442
     corresponding: true
     affiliation: "1, 2" # (Multiple affiliations must be quoted)
+  - name: Ewan S. Douglas
+    orcid: 0000-0002-0813-4308
+    affiliation: 2
   - name: William Melby
     orcid: 0000-0001-5178-689X
     affiliation: 3
@@ -20,9 +23,6 @@ authors:
     affiliation: 3
   - name: Kenji Mulhal
     affiliation: 4
-  - name: Ewan S. Douglas
-    orcid: 0000-0002-0813-4308
-    affiliation: 2
   - name: Ramya M. Anche
     orcid: 0000-0002-4989-6253
     affiliation: 2
@@ -31,7 +31,6 @@ authors:
     orcid: 0000-0001-6829-7910
   - name: Maxwell A. Millar-Blanchaer
     orcid: 0000-0001-6205-9233
-    equal-contrib: true
     affiliation: 3
   
 affiliations:
