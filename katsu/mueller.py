@@ -376,6 +376,42 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     return M
 
+def wollaston(beam = 0, eta = 1):
+    """returns the 
+
+    Parameters
+    ----------
+    angle : float, or numpy.ndarray
+        angle of the transmission axis w.r.t. horizontal in radians. If numpy
+        array, must be the same shape as `shape`
+    a : float or numpy.ndarray
+        depolarization of Q
+    a : float or numpy.ndarray
+        depolarization of U
+    a : float or numpy.ndarray
+        depolarization of V
+    shape : list, optional
+        shape to prepend to the mueller matrix array, see `_empty_mueller`.
+        By default Nonex
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
+    # If the ordinary beam then sign = 1
+    if beam == 0:
+        sign = eta
+    # If the extraordinary beam then sign = -1
+    else:
+        sign = -eta
+
+    M = 0.5 * np.array([[1, sign, 0, 0],
+        [sign, 1, 0, 0],
+        [0, 0, 0, 0],
+        [0, 0, 0, 0]])
+
+    return M
 
 def depolarizer(angle, a, b, c, shape=None):
     """returns a diagonal depolarizer
