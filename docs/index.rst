@@ -27,6 +27,7 @@ Summary
    notebooks/BroadcastedPolarimetry.ipynb
    notebooks/PolarDecomposition.ipynb
    notebooks/DemoAgilisMotion.ipynb
+   notebooks/Q_DataReduction.ipynb
 
 
 

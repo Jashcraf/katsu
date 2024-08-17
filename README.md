@@ -3,7 +3,18 @@
 
 [![Documentation Status](https://readthedocs.org/projects/katsu/badge/?version=latest)](https://katsu.readthedocs.io/en/latest/?badge=latest)
 
-Katsu is a Python 3.8+ library that contains an integrated library for modeling simple polarization effects (represented with Mueller calculus), simulating full stokes and mueller polarimetry, and integrating both of these as data reduction tools for conducting polarimetry in the laboratory. We also feature motion control routines for commercially available rotation stages for a more Pythonic interface to devices that would otherwise require serial communication.
+Katsu is a Python 3.8+ library that contains an integrated library for modeling simple polarization effects (represented with Mueller calculus), simulating full stokes and mueller polarimetry, and integrating both of these as data reduction tools for conducting polarimetry in the laboratory. We also feature motion control routines for commercially available rotation stages for a more Pythonic interface to devices that would otherwise require serial communication. The documentation can be found at katsu.readthedocs.io. 
+
+## Optional dependencies
+
+Katsu has limited support for numpy-like backends, like `cupy` for accelerated computing and `jax` for automatic differentiation. These are not strict requirements, and must be installed by the user. To switch to them at runtime, either the `set_backend_to_cupy` or `set_backend_to_jax` method can be used from `katsu.math` at runtime.
+
+## Features
+
+- Mueller calculus
+- Mueller data reduction
+- Mueller polarimetry routines
+- Motion control for the Agilis piezoelectric rotation stages
 
 ## Installation
 Currently Katsu is installable from source, just run the following in your terminal
@@ -13,5 +24,8 @@ cd katsu
 pip install .
 ```
 
+## Contributions / Questions
+If you wish to contribute to Katsu, or have any questions about its use, please open an issue to start a discussion. Before a pull request is made, we prefer that an issue is made to discuss the contributions at a high level. 
+
 ## Acknowledgements
-Big thanks to Quinn Jarecki of UA's Polarization Lab for the starting theory on dual rotating retarder mueller polarimetry, and for overall helpful discussions. Thanks also to William Melby, Manxuan Zhang, and Max Millar-Blanchaer for being the first to test out the Mueller data reduction code.
+Thanks to Quinn Jarecki of UA's Polarization Lab for the starting theory on dual rotating retarder mueller polarimetry, and for overall helpful discussions. Thanks also to William Melby, Manxuan Zhang, and Max Millar-Blanchaer for being the first to test out the Mueller data reduction code.

@@ -1,19 +1,27 @@
-import numpy as np
 import pytest
 from katsu.katsu_math import (
     BackendShim,
+    np,
     set_backend_to_numpy,
     set_backend_to_cupy,
+    set_backend_to_jax,
     broadcast_outer,
     broadcast_kron
 )
 
 try:
     import cupy
+    cupy_installed = True
 
 except Exception:
     cupy_installed = False
 
+try:
+    import jax.numpy as jnp
+    jax_installed = True
+
+except Exception:
+    jax_installed = False
 
 def test_BackendShim():
 
@@ -30,11 +38,20 @@ def test_BackendShim():
 def test_set_backend_to_numpy():
     set_backend_to_numpy()
 
-
+#TODO install cupy and test for specifics
 @pytest.mark.skipif(cupy_installed is False, reason='cupy not found')
 def test_set_backend_to_cupy():
     set_backend_to_cupy()
+    assert np.__name__ == "cupy"
+    set_backend_to_numpy()
 
+
+@pytest.mark.skipif(jax_installed is False, reason='jax not found')
+def test_set_backend_to_jax(): 
+    set_backend_to_jax()
+    assert jnp.__name__ == np.__name__
+    set_backend_to_numpy()
+    
 
 def test_broadcast_outer():
 
