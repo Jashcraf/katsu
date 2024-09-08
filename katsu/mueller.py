@@ -252,7 +252,14 @@ def linear_retarder(a, r, shape=None):
         else:
             a = np.broadcast_to(a, [*M.shape[:-2]])
 
-        r = np.broadcast_to(r, [*M.shape[:-2]])
+        if isinstance(r, np.ndarray):
+            r = r
+        else:
+            r = np.broadcast_to(r, [*M.shape[:-2]])
+
+    if M.ndim > 4:
+        a = a[..., np.newaxis]
+        r = r[..., np.newaxis]
 
     if np.__name__ == "jax.numpy":
         # First row
@@ -321,14 +328,28 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     # make sure everything is the right size
     if M.ndim > 2:
-        a = np.broadcast_to(a, [*M.shape[:-2]])
-        Tmin = np.broadcast_to(Tmin, [*M.shape[:-2]])
+        if isinstance(a, np.ndarray):
+            a = a  # leave it alone
+        else:
+            a = np.broadcast_to(a, [*M.shape[:-2]])
+
+        if isinstance(Tmin, np.ndarray):
+            Tmin = Tmin
+        else:
+            Tmin = np.broadcast_to(Tmin, [*M.shape[:-2]])
 
     A = Tmax + Tmin
     B = Tmax - Tmin
     C = 2 * np.sqrt(Tmax * Tmin)
     cos2a = np.cos(2 * a)
     sin2a = np.sin(2 * a)
+
+    if M.ndim > 4:
+        A = A[..., np.newaxis]
+        B = B[..., np.newaxis]
+        C = C[..., np.newaxis]
+        cos2a = cos2a[..., np.newaxis]
+        sin2a = sin2a[..., np.newaxis]
 
     if np.__name__ == "jax.numpy":
         # first row
