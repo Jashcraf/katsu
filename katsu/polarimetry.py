@@ -3,6 +3,39 @@ from .katsu_math import broadcast_kron, broadcast_outer, condition_number, RMS_c
 from scipy.optimize import curve_fit
 
 
+def drrp_data_reduction_matrix(Mg, Ma, invert=False):
+    """Compute the polarimetric data reduction matrix from a generator and analyzer matrix
+
+    Parameters
+    ----------
+    Mg : numpy.ndarray
+        polarization state generator matrix
+    Ma : numpy.ndarray
+        polarization state analyzer matrix
+    invert : bool, optional
+        whether to return the pseudo-inverse of the matrix, by default False
+
+    Returns
+    -------
+    numpy.ndarray
+        polarimetric data reduction matrix
+    """
+
+    PSA = Ma[..., 0, :]
+    PSG = Mg[..., :, 0]
+
+    # polarimetric data reduction matrix, flatten Mueller matrix dimension
+    Wmat = broadcast_kron(PSA[..., np.newaxis], PSG[..., np.newaxis])
+    Wmat = Wmat.reshape([*Wmat.shape[:-2], 16])
+
+    if invert:
+        return np.linalg.pinv(Wmat)
+    
+    else:
+        return Wmat
+
+
+
 
 def full_mueller_polarimetry(thetas, power, angular_increment,
                              return_condition_number = False,
