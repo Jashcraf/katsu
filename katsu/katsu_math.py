@@ -38,9 +38,10 @@ def set_backend_to_cupy():
 
 def set_backend_to_jax(): 
     """Convenience method to automatically configure katsu's backend to jax."""
-    import jax.numpy as jnp
+    import jax as jax
 
-    np._srcmodule = jnp
+    jax.config.update("jax_enable_x64", True)
+    np._srcmodule = jax.numpy
 
     return
 
