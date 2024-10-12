@@ -21,7 +21,7 @@ authors:
   - name: Manxuan Zhang
     orcid: 0000-0003-3567-6839
     affiliation: 3
-  - name: Kenji Mulhal
+  - name: Kenji Mulhall
     affiliation: 4
   - name: Ramya M. Anche
     orcid: 0000-0002-4989-6253
