@@ -111,8 +111,8 @@ def condition_number(matrix):
     minv = np.linalg.pinv(matrix)
 
     # compute maximum norm https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
-    norm = np.linalg.norm(matrix, ord=np.inf)
-    ninv = np.linalg.norm(minv, ord=np.inf)
+    norm = np.linalg.norm(matrix, ord=np.inf, axis=(-2,-1))
+    ninv = np.linalg.norm(minv, ord=np.inf, axis=(-2,-1))
 
     return norm * ninv
 

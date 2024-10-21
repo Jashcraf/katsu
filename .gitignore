@@ -1,0 +1,13 @@
+*.pyc
+/dist/
+/*.egg-info
+/.vscode
+tags
+/doc/_build/
+/doc/api/
+/doc/tutorials/
+/.idea/
+/build/
+/.pytest_cache/
+/.eggs/
+.ipynb_checkpoints/

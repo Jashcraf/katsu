@@ -231,6 +231,8 @@ def test_diattenuation_parameters_from_mueller():
 try:
     import jax.numpy as jnp
     jax_installed = True
+    import jax
+    jax.config.update("jax_enable_x64", True)
 
 except Exception:
     jax_installed = False

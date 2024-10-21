@@ -1,5 +1,4 @@
-import numpy as np
-from .katsu_math import broadcast_outer
+from .katsu_math import broadcast_outer, np
 
 
 def _empty_stokes(shape):
@@ -199,7 +198,7 @@ def linear_polarizer(a, shape=None):
         M = M.at[..., 2, 1].set(cos2a * sin2a)
         M = M.at[..., 2, 2].set(sin2a**2)
 
-        M = M.divide(2)
+        M = M / 2
     else:
         # fist row
         M[..., 0, 0] = ones
@@ -252,7 +251,10 @@ def linear_retarder(a, r, shape=None):
         else:
             a = np.broadcast_to(a, [*M.shape[:-2]])
 
-        r = np.broadcast_to(r, [*M.shape[:-2]])
+        if isinstance(r, np.ndarray):
+            r = r
+        else:
+            r = np.broadcast_to(r, [*M.shape[:-2]])
 
     if np.__name__ == "jax.numpy":
         # First row
@@ -273,6 +275,11 @@ def linear_retarder(a, r, shape=None):
         M = M.at[..., 3, 3].set(np.cos(r))
     
     else:
+
+        # if M.ndim > 4:
+        #     a = a[..., np.newaxis]
+        #     r = r[..., np.newaxis]
+            
         # First row
         M[..., 0, 0] = 1.
 
@@ -321,8 +328,15 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     # make sure everything is the right size
     if M.ndim > 2:
-        a = np.broadcast_to(a, [*M.shape[:-2]])
-        Tmin = np.broadcast_to(Tmin, [*M.shape[:-2]])
+        if isinstance(a, np.ndarray):
+            a = a  # leave it alone
+        else:
+            a = np.broadcast_to(a, [*M.shape[:-2]])
+
+        if isinstance(Tmin, np.ndarray):
+            Tmin = Tmin
+        else:
+            Tmin = np.broadcast_to(Tmin, [*M.shape[:-2]])
 
     A = Tmax + Tmin
     B = Tmax - Tmin
@@ -350,9 +364,17 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
         M = M.at[..., 3, 3].set(C)
 
         # Apply Malus' law directly to the forehead
-        M = M.divide(2)
+        M = M / 2
 
     else:
+
+        # if M.ndim > 4:
+        #     A = A[..., np.newaxis]
+        #     B = B[..., np.newaxis]
+        #     C = C[..., np.newaxis]
+        #     cos2a = cos2a[..., np.newaxis]
+        #     sin2a = sin2a[..., np.newaxis]
+
         # first row
         M[..., 0, 0] = A
         M[..., 0, 1] = B*cos2a
@@ -486,18 +508,18 @@ def decompose_diattenuator(M, normalize=False):
 
     if np.__name__ == "jax.numpy":
         if M.ndim > 2:
-            diattenuation_vector = M.at[..., 0, 1:].divide(T.at[..., np.newaxis])
+            diattenuation_vector = M[..., 0, 1:] / (T.at[..., np.newaxis])
         else:
-            diattenuation_vector = M.at[..., 0, 1:].divide(T)
+            diattenuation_vector = M[..., 0, 1:] / (T)
 
         # D = np.sqrt(np.sum(np.matmul(diattenuation_vector, diattenuation_vector), axis=-1))
         D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
-        mD = np.sqrt(1 - D**2)
+        mD = np.sqrt(1 - D ** 2)
 
         if M.ndim > 2:
-            diattenutation_norm = diattenuation_vector.divide(D.at[..., np.newaxis])
+            diattenutation_norm = diattenuation_vector / (D.at[..., np.newaxis])
         else:
-            diattenutation_norm = diattenuation_vector.divide(D)
+            diattenutation_norm = diattenuation_vector / (D)
 
         DD = broadcast_outer(diattenutation_norm, diattenutation_norm)
 
@@ -641,8 +663,8 @@ def decompose_depolarizer(M, return_all=False):
         Mp = decompose_retarder(M, return_all=return_all)
 
     if np.__name__ == "jax.numpy":
-        Pdelta = Mp.at[..., 1:, 0]
-        mp = Mp.at[..., 1:, 1:]
+        Pdelta = Mp[..., 1:, 0]
+        mp = Mp[..., 1:, 1:]
 
         # Eq 52 Lu & Chipman
         mm = mp @ np.swapaxes(mp, -2, -1)
