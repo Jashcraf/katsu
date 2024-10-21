@@ -492,7 +492,7 @@ def decompose_diattenuator(M, normalize=False):
 
         # D = np.sqrt(np.sum(np.matmul(diattenuation_vector, diattenuation_vector), axis=-1))
         D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
-        mD = np.sqrt(1 - D.power(2))
+        mD = np.sqrt(1 - D**2)
 
         if M.ndim > 2:
             diattenutation_norm = diattenuation_vector.divide(D.at[..., np.newaxis])
@@ -588,7 +588,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
         Whether to return the retarder and diattenuator vs just the retarder.
         Defaults to False, which returns both
 
-    Returns
+    Returns 
     -------
     numpy.ndarray
         Retarder component of mueller matrix
@@ -603,7 +603,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
     Mr = M @ np.linalg.inv(Md)
 
     if normalize:
-        Mr = Mr/np.max(np.abs(Mr))
+        Mr = Mr/np.max(np.abs(Mr)) 
     else:
         Mr = Mr
 
