@@ -610,7 +610,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
         Whether to return the retarder and diattenuator vs just the retarder.
         Defaults to False, which returns both
 
-    Returns
+    Returns 
     -------
     numpy.ndarray
         Retarder component of mueller matrix
@@ -625,7 +625,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
     Mr = M @ np.linalg.inv(Md)
 
     if normalize:
-        Mr = Mr/np.max(np.abs(Mr))
+        Mr = Mr/np.max(np.abs(Mr)) 
     else:
         Mr = Mr
 
