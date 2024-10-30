@@ -10,13 +10,17 @@ authors = [
 ]
 
 keywords = ["python", "optics", "telescope", "polarization", "mueller", "polarimetry"]
-urls = {repository = "https://github.com/jashcraf/katsu", Homepage = "https://katsu.readthedocs.io"}
 dependencies = ["numpy", "scipy", "pyserial"]
 
 classifiers=[
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",
 ]
+
+[project.urls]
+GitHub = "https://github.com/jashcraf/katsu"
+Documentation = "https://katsu.readthedocs.org"
+
 
 [build-system]
 requires = ["setuptools", "wheel"]
