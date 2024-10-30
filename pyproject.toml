@@ -10,7 +10,7 @@ authors = [
 ]
 
 keywords = ["python", "optics", "telescope", "polarization", "mueller", "polarimetry"]
-urls = {repository = "https://github.com/jashcraf/katsu", Homepage = "katsu.readthedocs.io"}
+urls = {repository = "https://github.com/jashcraf/katsu", Homepage = "https://katsu.readthedocs.io"}
 dependencies = ["numpy", "scipy", "pyserial"]
 
 classifiers=[
