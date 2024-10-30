@@ -8,7 +8,7 @@
 Katsu is a Python 3.8+ library that contains an integrated library for modeling simple polarization effects (represented with Mueller calculus), simulating full stokes and mueller polarimetry, and integrating both of these as data reduction tools for conducting polarimetry in the laboratory. We also feature motion control routines for commercially available rotation stages for a more Pythonic interface to devices that would otherwise require serial communication. 
 
 ## Documentation
-The documentation can be found at [katsu.readthedocs.io](katsu.readthedocs.io). 
+The documentation can be found at [katsu.readthedocs.io](https://katsu.readthedocs.io/en/latest). 
 
 ## Optional dependencies
 
@@ -22,7 +22,12 @@ Katsu has limited support for numpy-like backends, like `cupy` for accelerated c
 - Motion control for the Agilis piezoelectric rotation stages
 
 ## Installation
-Currently Katsu is installable from source, just run the following in your terminal
+Katsu can be installed using `pip`, just run the following in your terminal
+```
+pip install katsu
+```
+
+Alternatively, Katsu is installable from source. Simply run the following in your terminal
 ```
 git clone https://github.com/Jashcraf/katsu/
 cd katsu
