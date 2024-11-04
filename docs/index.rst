@@ -16,22 +16,11 @@ Summary
 * Routines for full Stokes and Mueller data reduction
 * Options for controlling motion stages that enable polarimetry
 
-Installation
-============
-Katsu can be installed via pip
-.. code-block:: bash
-
-   pip install katsu
-
-Or cloned from source
-.. code-block:: bash
-
-   git clone https://github.com/Jashcraf/katsu
-
 .. toctree::
    :maxdepth: 1
    :caption: Contents:
 
+   notebooks/Installation.ipynb
    modules
    notebooks/MuellerCalculus.ipynb
    notebooks/FullStokesExample.ipynb

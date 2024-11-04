@@ -1,4 +1,4 @@
-katsu
+katsu API Reference
 =====
 
 .. toctree::
