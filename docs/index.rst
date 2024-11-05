@@ -20,8 +20,8 @@ Summary
    :maxdepth: 1
    :caption: Contents:
 
-   notebooks/Installation.ipynb
    modules
+   notebooks/Installation.ipynb
    notebooks/MuellerCalculus.ipynb
    notebooks/FullStokesExample.ipynb
    notebooks/FullMuellerExample.ipynb
