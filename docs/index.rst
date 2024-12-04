@@ -5,16 +5,16 @@
 
 Welcome to Katsu's documentation!
 =================================
-Katsu is a package for full Mueller and Stokes polarimetry in the laboratory, complete with Mueller calculus, polarimetric data reduction routines, and some simple classes for serial communication with rotation stages that enable polarimetry. Katsu was developed as a part of a NASA Space Technology Graduate Research Opportunity Visiting Technologist Experience at Subaru Telescope, with the aim of enhancing our understanding of instrumental polarization in astronomical telescopes.
+Katsu is a package for enabling polarimetry in the laboratory, complete with capabilities for polarimeter simulation, polarimetric data reduction routines, and some simple classes for serial communication with rotation stages that enable polarimetry. Katsu was developed as a part of a NASA Space Technology Graduate Research Opportunity Visiting Technologist Experience at Subaru Telescope, with the aim of enhancing our understanding of instrumental polarization in astronomical telescopes.
 
 Summary
 -------
 
 **What this software does:**
 
-* Spatially-broadcasted Mueller calculus
-* Routines for full Stokes and Mueller data reduction
-* Options for controlling motion stages that enable polarimetry
+* Spatially-broadcasted Mueller calculus: Katsu is structured to enable 
+* Routines for full Stokes and Mueller data reduction: Katsu contains routines for polarimetric data reduction for full Stokes and Mueller polarimeters
+* Options for controlling motion stages that enable polarimetry: Katsu contains a full Python API for Newport's Agilis Rotation mounts, enabling the operation of rotating-retarder polarimeters in the laboratory.
 
 .. toctree::
    :maxdepth: 1

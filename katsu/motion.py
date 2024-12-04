@@ -72,10 +72,6 @@ class AgilisRotationStage(BaseRotationStage):
             Channel on the AG-UC2/8 controller, by default 1
         axis : int, optional
             Axis on the AG-UC2/8 controller, by default 1
-
-        Notes
-        -----
-        Inherits from BaseRotationStage
         """
         super().__init__(port, baudrate, bytesize, data_bits, parity, stop_bits, termination_character, encoding, timeout)
         self.channel = channel
@@ -106,6 +102,11 @@ class AgilisRotationStage(BaseRotationStage):
 
         FIXME: This stalls indefinitely, can't figure out source. It might be
         that it's waiting for 8 bytes and not returning 8 bytes?
+
+        Returns
+        -------
+        string
+            string containing the current step delay
 
         """
 
@@ -143,6 +144,12 @@ class AgilisRotationStage(BaseRotationStage):
 
     def get_jog_mode(self):
         """return current jog mode, see start_jog_motion
+
+
+        Returns
+        -------
+        string
+            string containing the current jog mode
         """
 
         commandstring = f'{self.axis} JA?' + self.termination_character
@@ -155,6 +162,11 @@ class AgilisRotationStage(BaseRotationStage):
     def measure_current_position(self):
         """starts a process to measure current position. Interrupts USB communication 
         during the process. This can last up to 2 minutes
+
+        Returns
+        -------
+        string
+            string containing the current position
         """
 
         commandstring = f'{self.axis} MA' + self.termination_character
@@ -223,6 +235,11 @@ class AgilisRotationStage(BaseRotationStage):
 
     def get_current_target_position(self):
         """Returns current target position when using absolute move
+
+        Returns
+        -------
+        string
+            string containing the current target position
         """
 
         commandstring = f'{self.axis} PA?' + self.termination_character
@@ -282,11 +299,10 @@ class AgilisRotationStage(BaseRotationStage):
         Notes
         -----
         Only positive integers are permitted, so amplitude is automatically converted to
-        its nearest integer magnitude
-
-        Too small a step size may result in nonlinear motion, or no motion at all. Furthermore
-        there is no gurantee of a linear correlation between the step amplitude and effective 
-        motion size, so it must be calibrated before experimentation.
+        its nearest integer magnitude. Too small a step size may result in nonlinear motion, 
+        or no motion at all. Furthermore there is no gurantee of a linear correlation
+        between the step amplitude and effective motion size, so it must be calibrated 
+        before experimentation.
 
         Parameters
         ----------
@@ -327,6 +343,11 @@ class AgilisRotationStage(BaseRotationStage):
         -4 : Parameter nn out of range
         -5 : Not allowed in local mode
         -6 : Note allowed in current state
+
+        Returns
+        -------
+        string
+            string containing the error code
         """
 
         commandstring = 'TE'
@@ -340,6 +361,11 @@ class AgilisRotationStage(BaseRotationStage):
         """Returns the number of accumullated steps in the forward direction minus the
         number of steps in backward direction since powering the controller or since
         the last zero point.
+
+        Returns
+        -------
+        string
+            string containing the number of accumulated steps
         """
 
         commandstring = f'{self.axis} TP' + self.termination_character
@@ -359,6 +385,11 @@ class AgilisRotationStage(BaseRotationStage):
         1 : Stepping (Currently executing a PR command)
         2 : Jogging (Currently executing a JA command)
         3 : Moving to limit (Currently executing a MV, MA, or PA command)
+
+        Returns
+        -------
+        string
+            string containing the current axis status
         """
 
         commandstring = f'{self.axis} TS' + self.termination_character
