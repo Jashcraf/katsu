@@ -24,6 +24,8 @@ Summary
    modules
    notebooks/Installation.ipynb
 
+.. contents::
+
 Tutorials
 ---------
 .. toctree::
@@ -45,10 +47,10 @@ Explanations
 .. toctree::
    :maxdepth: 2
 
-   notebooks/explanations/BroadcastedPolarimetry.ipynb
-   notebooks/explanations/DemoAgilisMotion.ipynb
-   notebooks/explanations/DualChannelPolarimetryIntro.ipynb
-   notebooks/explanations/Q_DataReduction.ipynb
+   notebooks/explanation/BroadcastedPolarimetry.ipynb
+   notebooks/explanation/DemoAgilisMotion.ipynb
+   notebooks/explanation/DualChannelPolarimetryIntro.ipynb
+   notebooks/explanation/Q_DataReduction.ipynb
 
 
 
