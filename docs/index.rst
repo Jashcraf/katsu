@@ -17,35 +17,36 @@ Summary
 * Options for controlling motion stages that enable polarimetry: Katsu contains a full Python API for Newport's Agilis Rotation mounts, enabling the operation of rotating-retarder polarimeters in the laboratory.
 
 
+.. contents::
+   
 .. toctree::
    :maxdepth: 1
    :caption: API Reference
-
    modules
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Installation
+
    notebooks/Installation.ipynb
 
-.. contents::
-
-Tutorials
----------
 .. toctree::
    :maxdepth: 2
+   :caption: Tutorials
 
    notebooks/tutorials/MuellerCalculus.ipynb
    notebooks/tutorials/PolarDecomposition.ipynb
 
-How-Tos
--------
 .. toctree::
    :maxdepth: 2
+   :caption: How-Tos
 
    notebooks/howtos/FullStokesExample.ipynb
    notebooks/howtos/FullMuellerExample.ipynb
 
-Explanations
-------------
 .. toctree::
    :maxdepth: 2
+   :caption: Explanations
 
    notebooks/explanation/BroadcastedPolarimetry.ipynb
    notebooks/explanation/DemoAgilisMotion.ipynb
