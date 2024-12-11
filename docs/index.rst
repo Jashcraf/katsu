@@ -37,17 +37,18 @@ How-Tos
 .. toctree::
    :maxdepth: 2
 
-   notebooks/FullStokesExample.ipynb
-   notebooks/FullMuellerExample.ipynb
+   notebooks/howtos/FullStokesExample.ipynb
+   notebooks/howtos/FullMuellerExample.ipynb
 
 Explanations
 ------------
 .. toctree::
    :maxdepth: 2
-   
-   notebooks/BroadcastedPolarimetry.ipynb
-   notebooks/DemoAgilisMotion.ipynb
-   notebooks/Q_DataReduction.ipynb
+
+   notebooks/explanations/BroadcastedPolarimetry.ipynb
+   notebooks/explanations/DemoAgilisMotion.ipynb
+   notebooks/explanations/DualChannelPolarimetryIntro.ipynb
+   notebooks/explanations/Q_DataReduction.ipynb
 
 
 
