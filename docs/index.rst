@@ -16,17 +16,36 @@ Summary
 * Routines for full Stokes and Mueller data reduction: Katsu contains routines for polarimetric data reduction for full Stokes and Mueller polarimeters
 * Options for controlling motion stages that enable polarimetry: Katsu contains a full Python API for Newport's Agilis Rotation mounts, enabling the operation of rotating-retarder polarimeters in the laboratory.
 
+
 .. toctree::
    :maxdepth: 1
-   :caption: Contents:
+   :caption: API Reference
 
    modules
    notebooks/Installation.ipynb
-   notebooks/MuellerCalculus.ipynb
+
+Tutorials
+---------
+.. toctree::
+   :maxdepth: 2
+
+   notebooks/tutorials/MuellerCalculus.ipynb
+   notebooks/tutorials/PolarDecomposition.ipynb
+
+How-Tos
+-------
+.. toctree::
+   :maxdepth: 2
+
    notebooks/FullStokesExample.ipynb
    notebooks/FullMuellerExample.ipynb
+
+Explanations
+------------
+.. toctree::
+   :maxdepth: 2
+   
    notebooks/BroadcastedPolarimetry.ipynb
-   notebooks/PolarDecomposition.ipynb
    notebooks/DemoAgilisMotion.ipynb
    notebooks/Q_DataReduction.ipynb
 
