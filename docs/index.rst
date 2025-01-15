@@ -19,12 +19,12 @@ Summary
 .. contents::
    
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: API Reference
    modules
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Community Guidelines
 
    notebooks/CommunityGuidelines.ipynb
