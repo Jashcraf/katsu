@@ -199,6 +199,7 @@ def linear_polarizer(a, shape=None):
         M = M.at[..., 2, 2].set(sin2a**2)
 
         M = M / 2
+        
     else:
         # fist row
         M[..., 0, 0] = ones
