@@ -30,7 +30,7 @@ Summary
    notebooks/CommunityGuidelines.ipynb
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
    :caption: Installation
 
    notebooks/Installation.ipynb
