@@ -4,34 +4,30 @@ katsu API Reference
 Submodules
 ----------
 
-katsu.katsu_math module
------------------------
+.. toctree::
+   :maxdepth: 4
+   :caption: katsu_math
 
-.. automodule:: katsu.katsu_math
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   katsu_math
 
-katsu.motion module
--------------------
+.. toctree::
+   :maxdepth: 4
+   :caption: motion
 
-.. automodule:: katsu.motion
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   motion
 
-katsu.mueller module
---------------------
+.. toctree::
+   :maxdepth: 4
+   :caption: mueller
 
-.. automodule:: katsu.mueller
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   mueller
 
-katsu.polarimetry module
-------------------------
+.. toctree::
+   :maxdepth: 4
+   :caption: polarimetry
 
-.. automodule:: katsu.polarimetry
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   polarimetry
+
+
+
+
