@@ -1,6 +1,12 @@
 from .mueller import linear_retarder, linear_polarizer, linear_diattenuator, _empty_mueller, decompose_retarder, wollaston
 from .katsu_math import broadcast_kron, broadcast_outer, condition_number, RMS_calculator, propagated_error, np
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, minimize
+
+# Define the identity matrix and other matrices which are useful for the Mueller calculus
+M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+A = np.array([1, 0, 0, 0])
+B = np.array([[1], [0], [0], [0]])
+C = np.array([0, 1, 0, 0])
 
 
 def drrp_data_reduction_matrix(Mg, Ma, invert=False):
@@ -33,8 +39,6 @@ def drrp_data_reduction_matrix(Mg, Ma, invert=False):
     
     else:
         return Wmat
-
-
 
 
 def full_mueller_polarimetry(thetas, power, angular_increment,
@@ -133,6 +137,7 @@ def full_mueller_polarimetry(thetas, power, angular_increment,
 
     return M_meas.reshape([*M_meas.shape[:-1], 4, 4])
 
+
 def stokes_sinusoid(theta, a0, b2, a4, b4):
     """sinusoidal response of a single rotating retarder full stokes
     polarimeter.
@@ -156,6 +161,7 @@ def stokes_sinusoid(theta, a0, b2, a4, b4):
         sinusoidal response of the SRRP
     """
     return a0 + b2*np.sin(2*theta) + a4*np.cos(4*theta) + b4*np.sin(4*theta)
+
 
 def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     """conduct a full stokes polarimeter measurement
@@ -220,6 +226,7 @@ def full_stokes_polarimetry(thetas, Sin=None, power=None, return_coeffs=False):
     else:
         return np.array([S0, S1, S2, S3])
 
+
 # TODO: Figure out a way to get the dual_channel_polarimetry_function to use
 # this generalized function instead of separate sinusoidal fitting functions
 def dual_channel_sinusoid(theta, I, Q, U, theta_2 = None, 
@@ -275,6 +282,7 @@ def dual_channel_sinusoid(theta, I, Q, U, theta_2 = None,
             return (Q * (np.cos(4 * theta) - np.cos(4 * theta_2)) + \
                 U * (np.sin(4 * theta) - np.sin(4 * theta_2)))
         
+
 def unnormalized_single_diff_sinusoid(theta, Q, U):
     """
     Calculate the unnormalized sinusoidal response for a single difference in 
@@ -297,6 +305,7 @@ def unnormalized_single_diff_sinusoid(theta, Q, U):
     """
     output_power = (Q * np.cos(4 * theta) + U * np.sin(4 * theta))
     return output_power
+
 
 def unnormalized_double_diff_sinusoid(theta_1, theta_2, Q, U):
     """
@@ -326,6 +335,7 @@ def unnormalized_double_diff_sinusoid(theta_1, theta_2, Q, U):
         U * (np.sin(4 * theta_2) - np.sin(4 * theta_1)))
     return output_power
 
+
 # TODO: Test the implentation of normalized single difference
 def normalized_single_diff_sinusoid(theta, I, Q, U):
     """
@@ -350,6 +360,7 @@ def normalized_single_diff_sinusoid(theta, I, Q, U):
     
     output_power = (Q * np.cos(4 * theta) + U * np.sin(4 * theta) / I)
     return output_power
+
 
 # TODO: Test the implentation of normalized double difference
 def normalized_double_diff_sinusoid(theta_1, theta_2, I, Q, U):
@@ -381,6 +392,7 @@ def normalized_double_diff_sinusoid(theta_1, theta_2, I, Q, U):
     output_power = (Q * (np.cos(4 * theta_1) - np.cos(4 * theta_2)) + \
         U * (np.sin(4 * theta_1) - np.sin(4 * theta_2)) / (2 * I))
     return output_power
+
 
 def dual_channel_polarimeter(thetas, S_in = None, power_o = None, 
         power_e = None, normalized = False, sub_method = "single_difference"):
@@ -501,6 +513,7 @@ def dual_channel_polarimeter(thetas, S_in = None, power_o = None,
 
         return np.array([1, Q_fit, U_fit, 0])
 
+
 def _full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=None,
                              starting_angles={'psg_polarizer':0,
                                               'psg_qwp':0,
@@ -570,6 +583,7 @@ def _full_mueller_polarimetry(thetas,power=1,return_condition_number=False,Min=N
     else:
         return M
     
+
 # Function that makes the Mueller matrix using the calibration parameters a1, w1, w2, r2, and r2. Set these to 0 for an uncalibrated matrix
 def q_calibrated_full_mueller_polarimetry(thetas, a1, w1, w2, r1, r2, I_vert, I_hor, M_in=None):
     """Full Mueller polarimetry using measurements of Q and calibration parameters. 
@@ -641,37 +655,10 @@ def q_calibrated_full_mueller_polarimetry(thetas, a1, w1, w2, r1, r2, I_vert, I_
 
     return M
 
-# Define the identity matrix and other matrices which are useful for the Mueller calculus
-M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
-A = np.array([1, 0, 0, 0])
-B = np.array([[1], [0], [0], [0]])
-C = np.array([0, 1, 0, 0])
-
-# # The next function should work equivalently
-# def q_calibration_function(t, a1, w1, w2, r1, r2):
-#     """Function that models the Mueller calculus for the DRRP system and is used to calculate the calibration parameters.
-#     t : array
-#         angles of the first quarter wave plate
-#     a1 : float
-#         calibration parameter for the offset angle of the first linear polarizer
-#     w1 : float
-#         calibration parameter for the offset angle of the first quarter-wave plate fast axis.
-#     w2 : float
-#         calibration parameter for the offset angle of the second quarter-wave plate fast axis.
-#     r1 : float
-#         calibration parameter for the retardance offset of the first quarter-wave plate. 
-#     r2 : float
-#         calibration parameter for the retardance offset of the second quarter-wave plate.
-#     Returns:
-#         An array of predictions for measured Q values."""
-#     prediction = [None]*len(t)
-#     for i in range(len(t)):
-#         prediction[i] = float(C @ linear_retarder(5*t[i]+w2, np.pi/2+r2) @ M_identity @ linear_retarder(t[i]+w1, np.pi/2+r1) @ linear_polarizer(a1) @ B)
-#     return prediction
-
 
 def q_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
     """Function that models the Mueller calculus for the DRRP system and is used to calculate the calibration parameters.
+    
     Parameters
     ----------
     t : array
@@ -688,10 +675,13 @@ def q_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
         calibration parameter for the retardance offset of the second quarter-wave plate.
     M_in : array
         optional 4x4 Mueller matrix to simulate data. By default None, which uses the identity matrix for air. 
+    
     Returns
     -------
     prediction : array
-        An array of predictions for measured Q values."""
+        An array of predictions for measured Q values.
+        
+    """
     if M_in is None:
         M = M_identity
     else:
@@ -706,6 +696,7 @@ def q_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
 # Function that is useful for generating intensity values for a given sample matrix and offset parameters
 def I_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
     """Function to generate TOTAL intensity values measured with a given Mueller matrix and offset parameters.
+    
     Parameters
     ----------
     t : array
@@ -722,10 +713,14 @@ def I_output_simulation_function(t, a1, w1, w2, r1, r2, M_in=None):
         calibration parameter for the retardance offset of the second quarter-wave plate.
     M_in : array
         optional 4x4 Mueller matrix to simulate data. By default None, which uses the identity matrix for air. 
+    
     Returns
     -------
     prediction : array
-        An array of predictions for measured Q values."""
+        An array of predictions for measured Q values.
+        
+        
+    """
     if M_in is None:
         M = M_identity
     else:
@@ -779,6 +774,7 @@ def single_output_simulation_function(t, a1, a2, w1, w2, r1, r2, LPA_angle=0, M_
 def q_ultimate_polarimetry(cal_angles, cal_vert_intensity, cal_hor_intensity, sample_angles, sample_vert_intensity, sample_hor_intensity):
     """Function that calculates the Mueller matrix of a sample and other relevant information.
     cal_angles and sample_angles could be the same, or could be different.
+    
     Parameters
     ----------
     cal_angles : array
@@ -793,6 +789,7 @@ def q_ultimate_polarimetry(cal_angles, cal_vert_intensity, cal_hor_intensity, sa
         measured intensity of the vertical polarization spot from the Wollaston prism when taking data with the sample
     sample_hor_intensity : array
         measured intensity of the horizontal polarization spot from the Wollaston prism when taking data with the sample
+    
     Returns
     -------
     M_Sample : array

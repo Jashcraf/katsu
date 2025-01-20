@@ -261,6 +261,9 @@ class AgilisRotationStage(BaseRotationStage):
         commandstring = 'PH'
         commandbytes = bytes(commandstring, encoding=self.encoding)
         self.serial_communication.write(commandbytes)
+        out = self.serial_communication.readline()
+
+        return out
 
     def relative_move(self, steps):
         """Move relative to current position in steps whose amplitude are defined by the SU command
@@ -409,6 +412,13 @@ class AgilisRotationStage(BaseRotationStage):
 
     @property
     def angular_step_size(self):
+        """Property containing the angular step size, provided by user
+
+        Returns
+        -------
+        float
+            angular step size, radians
+        """
         return self._angular_step_size
 
     @angular_step_size.setter
@@ -417,6 +427,13 @@ class AgilisRotationStage(BaseRotationStage):
 
     @property
     def angular_offset(self):
+        """Property containing the angular offset from the horizontal, provided by user
+
+        Returns
+        -------
+        float
+            angular offset, radians
+        """
         return self._angular_offset
 
     @angular_offset.setter
@@ -424,6 +441,8 @@ class AgilisRotationStage(BaseRotationStage):
         self.angular_offset = value
 
     def compute_angular_position(self):
+        """Computes current angular position and writes to angular position attribute
+        """
         outstring = self.get_number_of_steps().decode(self.encoding)
         _, TP, parsed_outstring = outstring.partition('TP') # get the number and termination char
         parsed_outstring = parsed_outstring.split('TP')[0] # remove termination char
@@ -432,6 +451,13 @@ class AgilisRotationStage(BaseRotationStage):
 
     @property
     def angular_position(self):
+        """Property containing the current angular position, radians
+
+        Returns
+        -------
+        float
+            Current angular position of rotation stage, radians
+        """
         return self._angular_position
 
     @angular_position.setter

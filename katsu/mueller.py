@@ -276,10 +276,6 @@ def linear_retarder(a, r, shape=None):
         M = M.at[..., 3, 3].set(np.cos(r))
     
     else:
-
-        # if M.ndim > 4:
-        #     a = a[..., np.newaxis]
-        #     r = r[..., np.newaxis]
             
         # First row
         M[..., 0, 0] = 1.
@@ -304,7 +300,7 @@ def linear_retarder(a, r, shape=None):
 def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     """returns a homogenous linear diattenuator
 
-    CLY 6.54
+    See Equation 6.54 in CLY
 
     Parameters
     ----------
@@ -369,13 +365,6 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     else:
 
-        # if M.ndim > 4:
-        #     A = A[..., np.newaxis]
-        #     B = B[..., np.newaxis]
-        #     C = C[..., np.newaxis]
-        #     cos2a = cos2a[..., np.newaxis]
-        #     sin2a = sin2a[..., np.newaxis]
-
         # first row
         M[..., 0, 0] = A
         M[..., 0, 1] = B*cos2a
@@ -399,42 +388,35 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     return M
 
-def wollaston(beam = 0, eta = 1):
-    """returns the 
+def wollaston(beam = 0, rotation=0., shape=None):
+    """Method to construct the Mueller matrix of a Wollaston, 
+    Functionally just a hand-hold wrapper for linear_polarizer
 
     Parameters
     ----------
-    angle : float, or numpy.ndarray
-        angle of the transmission axis w.r.t. horizontal in radians. If numpy
-        array, must be the same shape as `shape`
-    a : float or numpy.ndarray
-        depolarization of Q
-    a : float or numpy.ndarray
-        depolarization of U
-    a : float or numpy.ndarray
-        depolarization of V
+    beam : int, or str
+        'Channel' of wollaston prism, by default 0, which returns the
+        Mueller matrix for the horizontally-polarized beam
+    rotation : float, optional
+        Rotation of the Wollaston prism with respect to the laboratory's
+        horizontal axis, by default 0
     shape : list, optional
         shape to prepend to the mueller matrix array, see `_empty_mueller`.
-        By default Nonex
+        By default None
 
     Returns
     -------
-    _type_
-        _description_
+    numpy.ndarray
+        Mueller matrix of the chosen linear polarizer channel
     """
-    # If the ordinary beam then sign = 1
-    if beam == 0:
-        sign = eta
-    # If the extraordinary beam then sign = -1
+
+    # Ordinary beam
+    if (beam == 0) or (beam=="ordinary"):
+        return linear_polarizer(rotation, shape=shape)
+    
+    # Extraordinary beam
     else:
-        sign = -eta
-
-    M = 0.5 * np.array([[1, sign, 0, 0],
-        [sign, 1, 0, 0],
-        [0, 0, 0, 0],
-        [0, 0, 0, 0]])
-
-    return M
+        return linear_polarizer(rotation + np.pi/2, shape=shape)
 
 def depolarizer(angle, a, b, c, shape=None):
     """returns a diagonal depolarizer
@@ -446,9 +428,9 @@ def depolarizer(angle, a, b, c, shape=None):
         array, must be the same shape as `shape`
     a : float or numpy.ndarray
         depolarization of Q
-    a : float or numpy.ndarray
+    b : float or numpy.ndarray
         depolarization of U
-    a : float or numpy.ndarray
+    c : float or numpy.ndarray
         depolarization of V
     shape : list, optional
         shape to prepend to the mueller matrix array, see `_empty_mueller`.
@@ -456,8 +438,8 @@ def depolarizer(angle, a, b, c, shape=None):
 
     Returns
     -------
-    _type_
-        _description_
+    numpy.ndarray
+        depolarizer Mueller matrix
     """
 
     M = _empty_mueller(shape)
@@ -775,14 +757,13 @@ def mueller_to_jones(M):
     """Converts Mueller matrix to a relative Jones matrix. Phase aberration is
     relative to the Pxx component.
 
+    See Eq. 6.112 in CLY
+
     Returns
     -------
     J : 2x2 ndarray
         Jones matrix from Mueller matrix calculation
     """
-
-    "CLY Eq. 6.112"
-    "Untested"
 
     pxx = np.sqrt((M[0, 0] + M[0, 1] + M[1, 0] + M[1, 1]) / 2)
     pxy = np.sqrt((M[0, 0] - M[0, 1] + M[1, 0] - M[1, 1]) / 2)
@@ -937,137 +918,3 @@ def diattenuation_from_mueller(M):
     d = np.sqrt(dh**2 + dp**2 + dc**2)
 
     return d
-
-
-# The depreciated parent functions from when katsu was Observatory-Polarimetry
-def _linear_polarizer(a):
-    """generates an ideal polarizer, depreciated
-
-    CLY Eq 6.37
-    checked!
-
-    Parameters
-    ----------
-    a : float
-       angle of transmission axis w.r.t. horizontal in radians
-
-    Returns
-    -------
-    numpy.ndarray
-        Mueller Matrix for the linear polarizer
-    """
-
-    ones = np.ones_like(a)
-    zeros = np.zeros_like(a)
-
-    M01 = np.cos(2*a)
-    M02 = np.sin(2*a)
-
-    M10 = np.cos(2*a)
-    M11 = np.cos(2*a)**2
-    M12 = np.cos(2*a)*np.sin(2*a)
-    
-    M20 = np.sin(2*a)
-    M21 = np.cos(2*a)*np.sin(2*a)
-    M22 = np.sin(2*a)**2
-
-    M = 0.5*np.array([[ones,M01,M02,zeros],
-                    [M10,M11,M12,zeros],
-                    [M20,M21,M22,zeros],
-                    [zeros,zeros,zeros,zeros]])
-    
-    if M.ndim > 2:
-        for _ in range(M.ndim - 2):
-            M = np.moveaxis(M,-1,0)
-
-    return M 
-
-def _linear_retarder(a,r):
-    """Generates an ideal retarder
-
-    Parameters
-    ----------
-    a : float
-        angle of fast axis w.r.t. horizontal in radians
-    r : float
-        retardance in radians
-
-    Returns
-    -------
-    numpy.ndarray
-        Mueller Matrix for Linear Retarder
-    """
-
-    ones = np.ones_like(a)
-    zeros = np.zeros_like(a)
-    r = np.full_like(a,r)
-
-    M11 = np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2 # checked
-    M12 = (1-np.cos(r))*np.cos(2*a)*np.sin(2*a) # checked
-    M13 = -np.sin(r)*np.sin(2*a) # checked
-
-    M21 = M12 # checked but uncertain
-    M22 = np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2 # checked
-    M23 = np.cos(2*a)*np.sin(r) # checked
-
-    M31 = -M13 # checked
-    M32 = -M23 # checked
-    M33 = np.cos(r) # checked
-
-    M = np.array([[ones,zeros,zeros,zeros],
-                [zeros,M11,M12,M13],
-                [zeros,M21,M22,M23],
-                [zeros,M31,M32,M33]])
-
-    if M.ndim > 2:
-        for _ in range(M.ndim - 2):
-            M = np.moveaxis(M,-1,0)
-
-    return M
-
-def _linear_diattenuator(a,Tmin):
-    """Generates an ideal diattenuator
-
-    Parameters
-    ----------
-    a : float
-        angle of the high-transmission axis w.r.t. horizontal in radians
-    Tmin : float
-        fractional transmission of the low-transmission axis
-
-    Returns
-    -------
-    numpy.ndarray
-        Mueller Matrix for Linear Diattenuator
-    """
-
-    A = 1 + Tmin
-    B = 1 - Tmin
-    C = 2*np.sqrt(Tmin)
-
-    zeros = np.zeros_like(a)
-
-    M01 = B*np.cos(2*a)
-    M02 = B*np.sin(2*a)
-
-    M10 = M01
-    M11 = A*np.cos(2*a)**2 + C*np.sin(2*a)**2
-    M12 = (A-C) * np.cos(2*a) * np.sin(2*a)
-    
-    M20 = M02 
-    M21 = M12
-    M22 = C*np.cos(2*a)**2 + A*np.sin(2*a)**2
-
-    M = np.array([[A,M01,M02,zeros],
-                  [M10,M11,M12,zeros],
-                  [M20,M21,M22,zeros],
-                  [zeros,zeros,zeros,C]]) / 2
-    
-    if M.ndim > 2:
-        for _ in range(M.ndim-2):
-            M = np.moveaxis(M,-1,0)
-
-    return M
-
-
-
