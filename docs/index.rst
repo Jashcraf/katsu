@@ -63,7 +63,16 @@ Summary
    :maxdepth: 2
    :hidden:
 
-   notebooks/incomplete/
+   notebooks/incomplete/CalibratingPolarimeters.ipynb
+   notebooks/incomplete/DemoThorlabsMotion.ipynb
+   notebooks/incomplete/DRRP_ADOptimization.ipynb
+   notebooks/incomplete/FisherInformationDRRP.ipynb
+   notebooks/incomplete/InstrumentMuellerPolarimetry.ipynb
+   notebooks/incomplete/MaxLikelihoodCalibration.ipynb
+   notebooks/incomplete/PolarimeterOptimization.ipynb
+   notebooks/incomplete/SpatiallyVaryingData.ipynb
+   notebooks/incomplete/SPIE_SpatialData.ipynb
+   notebooks/incomplete/UnderfilledStokes.ipynb
 
 
 
