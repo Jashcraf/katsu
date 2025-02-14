@@ -59,21 +59,6 @@ Summary
    notebooks/explanation/DualChannelPolarimetryIntro.ipynb
    notebooks/explanation/Q_DataReduction.ipynb
 
-.. toctree::
-   :maxdepth: 2
-   :orphan:
-
-   notebooks/incomplete/CalibratingPolarimeters.ipynb
-   notebooks/incomplete/DemoThorlabsMotion.ipynb
-   notebooks/incomplete/DRRP_ADOptimization.ipynb
-   notebooks/incomplete/FisherInformationDRRP.ipynb
-   notebooks/incomplete/InstrumentMuellerPolarimetry.ipynb
-   notebooks/incomplete/MaxLikelihoodCalibration.ipynb
-   notebooks/incomplete/PolarimeterOptimization.ipynb
-   notebooks/incomplete/SpatiallyVaryingData.ipynb
-   notebooks/incomplete/SPIE_SpatialData.ipynb
-   notebooks/incomplete/UnderfilledStokes.ipynb
-
 
 
 Indices and tables
