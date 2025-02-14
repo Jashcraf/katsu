@@ -59,6 +59,12 @@ Summary
    notebooks/explanation/DualChannelPolarimetryIntro.ipynb
    notebooks/explanation/Q_DataReduction.ipynb
 
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+
+   notebooks/incomplete/
+
 
 
 Indices and tables
