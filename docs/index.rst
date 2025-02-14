@@ -61,7 +61,7 @@ Summary
 
 .. toctree::
    :maxdepth: 2
-   :hidden:
+   :orphan:
 
    notebooks/incomplete/CalibratingPolarimeters.ipynb
    notebooks/incomplete/DemoThorlabsMotion.ipynb
