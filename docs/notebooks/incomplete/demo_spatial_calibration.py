@@ -7,7 +7,7 @@ import numpy as tnp
 # Less common imports
 from prysm.coordinates import make_xy_grid, cart_to_polar
 from prysm.polynomials import noll_to_nm, sum_of_2d_modes
-from prysm.polynomials import zernike_nm_seq as zernike_nm_sequence
+from prysm.polynomials import zernike_nm_sequence
 from prysm.geometry import circle
 
 from katsu.mueller import (
@@ -268,7 +268,7 @@ if __name__ == "__main__":
     NMODES = 128
     NMEAS = 24
     N_PHOTONS = 1
-    MAX_ITERS = 100
+    MAX_ITERS = 200
 
     x, y = make_xy_grid(NPIX, diameter=2)
     r, t = cart_to_polar(x, y)
@@ -416,7 +416,7 @@ if __name__ == "__main__":
 
     lyot_stop = circle(0.8, r)
     plt.style.use("default")
-    plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1)    
+    plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)    
     
     from katsu.mueller import retardance_from_mueller
     ret = retardance_from_mueller(M_meas / M_meas[..., 0, 0, None, None] * lyot_stop[..., None, None])
@@ -568,7 +568,7 @@ if __name__ == "__main__":
     M_meas = np.reshape(M_meas[..., 0], [NPIX, NPIX, 4, 4])
 
     plt.style.use("default")
-    plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=-1e-3, vmax=1e-3, common_cbar=False)
+    plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=-1e-4, vmax=1e-4, common_cbar=False)
         
     
     plt.show()
