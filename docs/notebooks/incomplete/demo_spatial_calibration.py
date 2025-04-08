@@ -3,6 +3,8 @@ import matplotlib as mpl
 from scipy.optimize import minimize
 from tqdm import tqdm
 import numpy as tnp
+import time
+import sys
 
 # Less common imports
 from prysm.coordinates import make_xy_grid, cart_to_polar
@@ -21,12 +23,48 @@ from katsu.polarimetry import drrp_data_reduction_matrix
 from katsu.katsu_math import np, set_backend_to_jax, broadcast_kron
 
 # Plotting stuff
-
 plt.style.use('bmh')
 okabe_colorblind8 = ['#E69F00','#56B4E9','#009E73',
                      '#F0E442','#0072B2','#D55E00',
                      '#CC79A7','#000000']
+
 plt.rcParams['axes.prop_cycle'] = mpl.cycler(color=okabe_colorblind8)
+
+def arccos_taylor(x):
+    """
+    Taylor series centered on -1
+
+    Parameters
+    ----------
+    x : ndarray
+        input array of floats
+    """
+
+    t1 = np.pi / 2
+    t2 = x
+    t3 = x**3 / 6
+    t4 = 3 * x**5 / 40
+
+    return t1 - t2 - t3 - t4 # - t5 - t6 - t7
+
+def retardance_from_mueller_taylor(x):
+    """Computes the retardance from a Mueller matrix using the
+    Taylor series version of the arccos function
+
+    Parameters
+    ----------
+    x : ndarray
+        Mueller matrix of shape (N, N, 4, 4)
+
+    Returns
+    -------
+    retardance : ndarray
+        retardance of shape (N, N)
+    """
+
+    tracem = np.trace(x, axis1=-1, axis2=-2) / 2
+    retardance = arccos_taylor(tracem - 1)
+    return retardance
 
 
 def plot_square(x,n=4,vmin=None,vmax=None, common_cbar=True):
@@ -264,11 +302,24 @@ def forward_simulate_ignorant(x, NMODES, NMEAS, mask=None):
 
 if __name__ == "__main__":
 
+    if len(sys.argv) > 1:
+        NMODES = int(sys.argv[1])
+        NMEAS = int(sys.argv[2])
+        MAX_ITERS = int(sys.argv[3])
+        BACKEND = sys.argv[4] # string, 'jax' or 'numpy'
+
+    else:
+        print("Using default arguments")
+        NMODES = 128
+        NMEAS = 24
+        MAX_ITERS = 200
+        BACKEND = "jax"
+
+    assert BACKEND in ["jax", "numpy"]
+
     NPIX = 64
-    NMODES = 128
-    NMEAS = 24
     N_PHOTONS = 1
-    MAX_ITERS = 200
+    PLOT_INTERMEDIATES = False
 
     x, y = make_xy_grid(NPIX, diameter=2)
     r, t = cart_to_polar(x, y)
@@ -305,43 +356,43 @@ if __name__ == "__main__":
     x0_truth = np.concatenate([np.array([theta_pg, theta_pa]), coeffs_spatial_ret_psg, coeffs_spatial_ang_psg, coeffs_spatial_ret_psa, coeffs_spatial_ang_psa])
     power_experiment = forward_simulate(x0_truth, NMODES, NMEAS)
 
-
     # plot the ground truth retardance and angles
     retardance_psg = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ret_psg)
     retardance_psa = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ret_psa)
     angle_psg = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ang_psg)
     angle_psa = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ang_psa)
 
-    plt.figure(figsize=[9.5,8])
-    plt.subplot(221)
-    vlim_ret = 3
-    vlim_ang = .3
-    plt.title("Polarization State Generator")
-    plt.imshow(np.degrees(retardance_psg) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
-    plt.colorbar()
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.ylabel("Retardance")
-    plt.subplot(222)
-    plt.title("Polarization State Analyzer")
-    plt.imshow(np.degrees(retardance_psa) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
-    plt.colorbar(label="Retardance, Degrees")
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.subplot(223)
-    plt.imshow(np.degrees(angle_psg) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psg[A==1])) - vlim_ang,
-                                                        vmax=np.mean(np.degrees(angle_psg[A==1])) + vlim_ang)
-    plt.colorbar()
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.ylabel("Fast Axis Angle")
-    plt.subplot(224)
-    plt.imshow(np.degrees(angle_psa) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psa[A==1])) - vlim_ang,
-                                                        vmax=np.mean(np.degrees(angle_psa[A==1])) + vlim_ang)
-    plt.colorbar(label="Fast Axis Angle, deg")
-    plt.xticks([],[])
-    plt.yticks([],[])
-    # plt.show()
+    if PLOT_INTERMEDIATES:
+        plt.figure(figsize=[9.5,8])
+        plt.subplot(221)
+        vlim_ret = 3
+        vlim_ang = .3
+        plt.title("Polarization State Generator")
+        plt.imshow(np.degrees(retardance_psg) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
+        plt.colorbar()
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.ylabel("Retardance")
+        plt.subplot(222)
+        plt.title("Polarization State Analyzer")
+        plt.imshow(np.degrees(retardance_psa) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
+        plt.colorbar(label="Retardance, deg")
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.subplot(223)
+        plt.imshow(np.degrees(angle_psg) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psg[A==1])) - vlim_ang,
+                                                            vmax=np.mean(np.degrees(angle_psg[A==1])) + vlim_ang)
+        plt.colorbar()
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.ylabel("Fast Axis Angle")
+        plt.subplot(224)
+        plt.imshow(np.degrees(angle_psa) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psa[A==1])) - vlim_ang,
+                                                            vmax=np.mean(np.degrees(angle_psa[A==1])) + vlim_ang)
+        plt.colorbar(label="Fast Axis Angle, deg")
+        plt.xticks([],[])
+        plt.yticks([],[])
+        # plt.show()
 
     mean_power = []
     frame_photons = N_PHOTONS * power_experiment
@@ -388,18 +439,18 @@ if __name__ == "__main__":
     power_modeled = forward_simulate_pupil_avg(x0_results, NMODES, NMEAS=1000, mask=LS)
     power_pupil = forward_simulate(x0_results, NMODES, NMEAS)
 
+    if PLOT_INTERMEDIATES: 
+        plt.figure()
+        plt.imshow(power_pupil[...,1] / A)
+        plt.colorbar()
 
-    plt.figure()
-    plt.imshow(power_pupil[...,1] / A)
-    plt.colorbar()
-
-    plt.figure()
-    plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="Power Measured")
-    plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="Power Modeled")
-    plt.ylabel("Mean Power, A.U")
-    plt.xlabel("PSG Angle, degrees")
-    plt.title("Pupil-averaged Air Calibration")
-    plt.legend()
+        plt.figure()
+        plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="Power Measured")
+        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="Power Modeled")
+        plt.ylabel("Mean Power, A.U")
+        plt.xlabel("PSG Angle, degrees")
+        plt.title("Pupil-averaged Air Calibration")
+        plt.legend()
 
     psg_pol = linear_polarizer(results.x[0], shape=[NPIX, NPIX, NMEAS])
     psa_pol = linear_polarizer(results.x[1], shape=[NPIX, NPIX, NMEAS])
@@ -416,34 +467,47 @@ if __name__ == "__main__":
 
     lyot_stop = circle(0.8, r)
     plt.style.use("default")
-    plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)    
     
-    from katsu.mueller import retardance_from_mueller
-    ret = retardance_from_mueller(M_meas / M_meas[..., 0, 0, None, None] * lyot_stop[..., None, None])
-    
-    plt.figure(figsize=[12,4])
-    plt.style.use("bmh")
-    plt.subplot(121)
-    plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="Power Measured")
-    plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="Power Modeled")
-    plt.ylabel("Mean Power, A.U")
-    plt.xlabel("PSG Angle, degrees")
-    plt.title("Pupil-averaged Air Calibration")
-    plt.legend()
+    if PLOT_INTERMEDIATES:
+        plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)    
+     
 
-    plt.subplot(122)
-    plt.title("Retardance Measured of Air")
-    plt.imshow(np.degrees(ret) / lyot_stop * lyot_stop, cmap="RdBu_r")
-    plt.colorbar(label="Retardance, deg")
-    plt.xticks([],[])
-    plt.yticks([],[])
+    # offset_retardation = 1e-1
+    M_norm = M_meas / M_meas[..., 0, 0, None, None]
+    # M_norm[..., 1, 1] = M_norm[..., 1, 1] - np.sin(offset_retardation)
+    # M_norm[..., 2, 2] = M[..., 2, 2] + offset_retardation
+    # M_norm[..., 3, 3] = M[..., 3, 3] + offset_retardation
+
+    from katsu.mueller import retardance_from_mueller
+    ret = retardance_from_mueller_taylor(M_norm * lyot_stop[..., None, None])
+    ret -= np.mean(ret[lyot_stop==1])
+
+
+    if PLOT_INTERMEDIATES:
+        plt.figure(figsize=[12,4])
+        plt.style.use("bmh")
+        plt.subplot(121)
+        plt.plot(psg_angles, mean_power, marker="o", linestyle="none", markersize=10, label="power measured")
+        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+        plt.ylabel("mean power, a.u")
+        plt.xlabel("psg angle, degrees")
+        plt.title("pupil-averaged air calibration")
+        plt.legend()
+
+        plt.subplot(122)
+        plt.title("retardance measured of air")
+        plt.imshow(np.degrees(ret) / lyot_stop * lyot_stop, cmap="RdBu_r")
+        plt.colorbar(label="retardance, deg")
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.show()
     
-    ## PERFORMING THE SPATIAL CALIBRATION
-    # Init retardance, PSG
+    ## performing the spatial calibration
+    # init retardance, psg
     coeffs_spatial_ret_psg = np.zeros(len(basis))
     coeffs_spatial_ret_psg[0] = np.pi / 2
 
-    # Init angle, PSG
+    # init angle, psg
     coeffs_spatial_ang_psg = (np.zeros(len(basis)))
 
     # Init retardance, PSA
@@ -455,10 +519,15 @@ if __name__ == "__main__":
 
     x0 = np.concatenate([np.array([theta_pg, theta_pa]), coeffs_spatial_ret_psg, coeffs_spatial_ang_psg, coeffs_spatial_ret_psa, coeffs_spatial_ang_psa])
         
-    set_backend_to_jax()
+    
+    if BACKEND == "jax":
+        set_backend_to_jax()
     
     power_experiment_masked = np.copy(power_experiment)
-    power_experiment_masked = power_experiment_masked.at[np.isnan(power_experiment)].set(1e-10)
+    if BACKEND == "jax":
+        power_experiment_masked = power_experiment_masked.at[np.isnan(power_experiment)].set(1e-10)
+    else:
+        power_experiment_masked[np.isnan(power_experiment)] = 1e-10
     
     # need to define a new loss function
     from jax import value_and_grad
@@ -470,13 +539,22 @@ if __name__ == "__main__":
 
     loss_fg = value_and_grad(loss_jax)
 
+    print(f"Beginning timer for NMODES={NMODES}")
+    t1 = time.perf_counter()
     with tqdm(total=MAX_ITERS) as pbar:
-        results_jax = minimize(loss_fg, x0=x0, callback=callback, method="L-BFGS-B", jac=True,
-                        options={"maxiter": MAX_ITERS, "disp":False})
 
+        if BACKEND == "jax":
+            results_jax = minimize(loss_fg, x0=x0, callback=callback, method="L-BFGS-B", jac=True,
+                            options={"maxiter": MAX_ITERS, "disp":False})
+        if BACKEND == "numpy":
+            results_numpy = minimize(loss_jax, x0=x0, callback=callback, method="L-BFGS-B", jac=False,
+                            options={"maxiter": MAX_ITERS, "disp":False})
+            results_jax = results_numpy
+    runtime = time.perf_counter() - t1
+     
     # Did we actually re-create the retardance / fast axis?
-    vlim_ret = 30
-    vlim_ang = 6
+    vlim_ret = 3
+    vlim_ang = 0.6
     cmap = "coolwarm"
     scale = 3600
 
@@ -486,35 +564,35 @@ if __name__ == "__main__":
     modeled_coeffs_spatial_ret_psa = results_jax.x[2 + 2*len(basis):(2 + 3*len(basis))]
     modeled_coeffs_spatial_ang_psa = results_jax.x[2 + 3*len(basis):(2 + 4*len(basis))]
 
-
     retardance_psg_modeled = sum_of_2d_modes_wrapper(basis, modeled_coeffs_spatial_ret_psg)
     retardance_psa_modeled = sum_of_2d_modes_wrapper(basis, modeled_coeffs_spatial_ret_psa)
     angle_psg_modeled = sum_of_2d_modes_wrapper(basis, modeled_coeffs_spatial_ang_psg)
     angle_psa_modeled = sum_of_2d_modes_wrapper(basis, modeled_coeffs_spatial_ang_psa)
 
-    plt.figure(figsize=[9.5,8])
-    plt.subplot(221)
-    plt.title("Polarization State Generator")
-    plt.imshow(np.degrees(retardance_psg_modeled - retardance_psg) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
-    plt.colorbar()
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.subplot(222)
-    plt.title("Polarization State Analyzer")
-    plt.imshow(np.degrees(retardance_psa_modeled - retardance_psa) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
-    plt.colorbar(label="Retardance Residuals, arcsec")
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.subplot(223)
-    plt.imshow(np.degrees(angle_psg_modeled - angle_psg) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
-    plt.colorbar()
-    plt.xticks([],[])
-    plt.yticks([],[])
-    plt.subplot(224)
-    plt.imshow(np.degrees(angle_psa_modeled - angle_psa) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
-    plt.colorbar(label="Fast Axis Angle Residuals, arcsec")
-    plt.xticks([],[])
-    plt.yticks([],[])
+    if PLOT_INTERMEDIATES:
+        plt.figure(figsize=[9.5,8])
+        plt.subplot(221)
+        plt.title("Polarization State Generator")
+        plt.imshow(np.degrees(retardance_psg_modeled - retardance_psg) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
+        plt.colorbar()
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.subplot(222)
+        plt.title("Polarization State Analyzer")
+        plt.imshow(np.degrees(retardance_psa_modeled - retardance_psa) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
+        plt.colorbar(label="Retardance Residuals, arcsec")
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.subplot(223)
+        plt.imshow(np.degrees(angle_psg_modeled - angle_psg) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
+        plt.colorbar()
+        plt.xticks([],[])
+        plt.yticks([],[])
+        plt.subplot(224)
+        plt.imshow(np.degrees(angle_psa_modeled - angle_psa) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
+        plt.colorbar(label="Fast Axis Angle Residuals, arcsec")
+        plt.xticks([],[])
+        plt.yticks([],[])
 
 
     ## PERFORM THE POLARIMETRIC DATA REDUCTION
@@ -567,9 +645,41 @@ if __name__ == "__main__":
     M_meas = Winv @ (N_PHOTONS * power_experiment_masked)[..., None]
     M_meas = np.reshape(M_meas[..., 0], [NPIX, NPIX, 4, 4])
 
+    # offset_retardation = 1e-1
+    M_norm = M_meas / M_meas[..., 0, 0, None, None]
+    # M_norm = M_norm.at[..., 1, 1].set(M_norm[..., 1, 1] - np.sin(offset_retardation))
+    
     plt.style.use("default")
-    plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=-1e-4, vmax=1e-4, common_cbar=False)
+    if PLOT_INTERMEDIATES:
+        plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=None, vmax=None, common_cbar=False)
         
     
-    plt.show()
+    
+    from katsu.mueller import retardance_from_mueller
+    from katsu.mueller import decompose_retarder
+    M_ret = decompose_retarder(M_norm)
+    ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
+    ret -= np.mean(ret[lyot_stop==1])
 
+    if PLOT_INTERMEDIATES: 
+        plt.figure(figsize=[12,4])
+        plt.style.use("bmh")
+        plt.subplot(121)
+        plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="power measured")
+        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+        plt.ylabel("mean power, a.u")
+        plt.xlabel("psg angle, degrees")
+        plt.title("pupil-averaged air calibration")
+        plt.legend()
+
+        plt.subplot(122)
+        plt.title("retardance measured of air")
+        plt.imshow(np.degrees(ret) * lyot_stop / lyot_stop, cmap="RdBu_r")
+        plt.colorbar(label="retardance, deg")
+        plt.xticks([],[])
+        plt.yticks([],[])
+
+
+        plt.show()
+
+    print(f"Finished in {runtime} seconds for NMODES={NMODES}")

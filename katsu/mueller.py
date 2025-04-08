@@ -491,7 +491,7 @@ def decompose_diattenuator(M, normalize=False):
 
     if np.__name__ == "jax.numpy":
         if M.ndim > 2:
-            diattenuation_vector = M[..., 0, 1:] / (T.at[..., np.newaxis])
+            diattenuation_vector = M[..., 0, 1:] / (T[..., None])
         else:
             diattenuation_vector = M[..., 0, 1:] / (T)
 
@@ -500,7 +500,7 @@ def decompose_diattenuator(M, normalize=False):
         mD = np.sqrt(1 - D ** 2)
 
         if M.ndim > 2:
-            diattenutation_norm = diattenuation_vector / (D.at[..., np.newaxis])
+            diattenutation_norm = diattenuation_vector / (D[..., None])
         else:
             diattenutation_norm = diattenuation_vector / (D)
 
