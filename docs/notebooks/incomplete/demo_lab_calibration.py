@@ -6,6 +6,11 @@ import numpy as tnp
 import time
 import sys
 from pathlib import Path
+import ipdb
+from skimage.registration import phase_cross_correlation
+from scipy.ndimage import shift
+import warnings
+
 
 # Less common imports
 from prysm.coordinates import make_xy_grid, cart_to_polar
@@ -24,11 +29,12 @@ from katsu.polarimetry import drrp_data_reduction_matrix
 from katsu.katsu_math import np, set_backend_to_jax, broadcast_kron
 
 # derpy polarimeter libraries
-sys.path.append("/Users/kaladin/derp_control/")
+sys.path.append("C:/Users/Work/Desktop/derp_control/")
 from derpy.writing import read_experiment
+from derpy.experiments import forward_calibrate, forward_simulate
 
-DATA_PTH = Path.home() / "Library/CloudStorage/Box-Box/97_Data/derp/20250210_GPI"
-
+# Data loading
+DATA_PTH = Path.home() / "Box/97_Data/derp/20250210_GPI"
 CALIBRATION_ID = DATA_PTH / "GPI_HWP_center_air_calibration.msgpack"
 EXPERIMENT_ID = DATA_PTH / "GPI_HWP_center_measure_0.msgpack"
 
@@ -36,12 +42,13 @@ EXPERIMENT_ID = DATA_PTH / "GPI_HWP_center_measure_0.msgpack"
 WVL_ID = 4
 WAVELENGTH_SELECT = 1500  # nm
 
-PLOT_INTERMEDIATE = True
+PLOT_INTERMEDIATES = True
 MASK_RAD = 0.5 # from 0 to 1, 1 being the full circle
 MODE = "both" # "left", "right", "both"
 BAD_FRAMES_CAL = [] # [3, 13 -1], _, [8]
 BAD_FRAMES = [4]  # [-9], _, [-11]
 PLOT_IMAGES = False
+N_PHOTONS = 1
 # --------------------------------
 
 
@@ -52,6 +59,123 @@ okabe_colorblind8 = ['#E69F00','#56B4E9','#009E73',
                      '#CC79A7','#000000']
 
 plt.rcParams['axes.prop_cycle'] = mpl.cycler(color=okabe_colorblind8)
+
+
+"""Data Loading and Preprocessing methods
+"""
+def calibrate_experiment(x, experiment):
+
+    experiment.psg_pol_angle = x[0]
+    experiment.psg_starting_angle = np.degrees(x[1])
+    experiment.psg_wvp_ret = x[2]
+    experiment.psa_pol_angle = x[3]
+    experiment.psa_starting_angle = np.degrees(x[4])
+    experiment.psa_wvp_ret = x[5]
+
+    return experiment
+
+def load_and_pre_process_data(pth, wavelength_id, bad_frames,
+                              reference_frame_index=0, reference_channel="left",
+                              shiftx=0, shifty=0, mask_rad=0.7, crop=25):
+    """Load data from derpy.Experiment class, mask bad frames, and center the images
+
+    Parameters
+    ----------
+    pth : str or PosixPath
+        path to the derpy.Experiment class containing the appropriate data
+    wavelength_id : int
+        index of Experiment.images corresponding to the wavelength of interest
+    bad_frames : list of int
+        list of indices that contain frames to be ignored
+    reference_frame_index : int, optional
+        which frame to use as the centering reference, by default 0
+    reference_channel : str, optional
+        which channel to use as the reference frame for the DRRP data, by default "left"
+
+    Returns
+    -------
+    ndarray
+        Array containing images of shape frame, channel, row, col
+    """
+
+    assert reference_channel in ["left", "right"]
+
+    if reference_channel == "left":
+        reference_channel = 0
+        other_channel = 1
+    elif reference_channel == "right":
+        reference_channel = 1
+        other_channel = 0
+
+    experiment = read_experiment(pth)
+
+    # Create a mask to use as a centering reference
+    # x = np.linspace(-1, 1, experiment.images.shape[2])
+    # x, y = np.meshgrid(x, x)
+    # r = np.sqrt(x**2 + y**2)
+    # mask = np.zeros_like(experiment.images[0, 0, 0])
+    # ipdb.set_trace()
+    # extract data
+    # experiment.images is shape wavelength, frame, channel, row, col
+    # Start by masking out bad frames
+    images = experiment.images[wavelength_id]
+    powers = experiment.mean_power_left[wavelength_id]
+    masked_images = []
+    mean_power = []
+    psg_angles = []
+    for i, img in enumerate(images):
+        if i not in bad_frames:
+            masked_images.append(img)
+            mean_power.append(powers[i])
+            psg_angles.append(experiment.psg_positions_relative[i])
+
+    masked_images = np.asarray(masked_images)
+    mean_power = np.asarray(mean_power)
+
+    # now do the phase cross-correlation to center the images
+    reference_image = masked_images[reference_frame_index, reference_channel]
+    reference_image = shift(reference_image, (shiftx, shifty))
+    cropped_reference = reference_image[crop:-crop, crop:-crop]
+
+    # perform a cropping
+    # This just does the registration on the other channel in the first frame
+    dpix, error, diffphase = phase_cross_correlation(reference_image, 
+                                                      masked_images[reference_frame_index][other_channel])
+    shifted_other = shift(masked_images[reference_frame_index][other_channel], dpix)
+    cropped_other = shifted_other[crop:-crop, crop:-crop]
+
+    # register the right frame to the reference image
+    for i, img in enumerate(masked_images):
+        if i != reference_frame_index:
+
+            # phase cross correlation to the left frame
+            dpix, error, diffphase = phase_cross_correlation(reference_image, img[0])
+            masked_images[i, 0] = shift(img[0], dpix)
+            
+            # phase cross correlation to the right frame
+            dpix, error, diffphase = phase_cross_correlation(reference_image, img[1])
+            masked_images[i, 1] = shift(img[1], dpix)
+
+    # Scale down to a relative power of 0.5
+    scale_power = 2 * np.max(experiment.mean_power_left[WVL_ID])
+    masked_images /= scale_power
+
+    cropped_images = np.zeros([*masked_images.shape[:2],
+                              masked_images.shape[2] - 2 * crop,
+                              masked_images.shape[3] - 2 * crop])
+
+    # crop all of the images
+    for i in range(masked_images.shape[0]):
+        if i == reference_frame_index:
+            cropped_images[i, 0] = cropped_reference / scale_power
+            cropped_images[i, 1] = cropped_other / scale_power
+        else:
+            cropped_images[i, 0] = masked_images[i][0,crop:-crop, crop:-crop]
+            cropped_images[i, 1] = masked_images[i][1,crop:-crop, crop:-crop]
+
+
+    return cropped_images, mean_power, psg_angles
+
 
 def arccos_taylor(x):
     """
@@ -330,19 +454,24 @@ if __name__ == "__main__":
         NMEAS = int(sys.argv[2])
         MAX_ITERS = int(sys.argv[3])
         BACKEND = sys.argv[4] # string, 'jax' or 'numpy'
-
+        DO_FINITE_DIFF = sys.argv[5] # bool, True or False
     else:
         print("Using default arguments")
-        NMODES = 128
-        NMEAS = 24
-        MAX_ITERS = 200
+        NMODES = 32
+        NMEAS = 50 
+        MAX_ITERS = 100
         BACKEND = "jax"
-
+        DO_FINITE_DIFF = False
+       
     assert BACKEND in ["jax", "numpy"]
 
-    NPIX = 64
-    N_PHOTONS = 1
-    PLOT_INTERMEDIATES = False
+    frames, mean_power, psg_angles = load_and_pre_process_data(EXPERIMENT_ID,
+                                                               WVL_ID, BAD_FRAMES,
+                                                               shiftx=13, shifty=-15)
+    NMEAS -= len(BAD_FRAMES)
+    exp = read_experiment(EXPERIMENT_ID)
+    NPIX = frames.shape[-1]
+    power_experiment = frames
 
     x, y = make_xy_grid(NPIX, diameter=2)
     r, t = cart_to_polar(x, y)
@@ -351,85 +480,13 @@ if __name__ == "__main__":
     LS = circle(0.9, r)
     basis = construct_zern_basis(r, t, NMODES+1)
 
-    ## GROUND TRUTH PARAMETERS
-    SCALE = 100
-    theta_pg = np.radians(0)
-    theta_pa = np.radians(0)
-
-    # Init retardance, PSG
-    tnp.random.seed(24601)
-    coeffs_spatial_ret_psg = tnp.random.random(len(basis)) / SCALE
-    coeffs_spatial_ret_psg[0] = np.pi / 2
-
-    # Init angle, PSG
-    tnp.random.seed(8675309)
-    coeffs_spatial_ang_psg = tnp.random.random(len(basis)) / (SCALE * 4)
-    coeffs_spatial_ang_psg[0] = theta_pg #tnp.random.random()
-
-    # Init retardance, PSA
-    tnp.random.seed(24603)
-    coeffs_spatial_ret_psa = tnp.random.random(len(basis)) / SCALE
-    coeffs_spatial_ret_psa[0] = np.pi / 2
-
-    # Init angle, PSA
-    tnp.random.seed(24604)
-    coeffs_spatial_ang_psa = tnp.random.random(len(basis)) / (SCALE * 4)
-    coeffs_spatial_ang_psa[0] = theta_pa # tnp.random.random()
-
-    x0_truth = np.concatenate([np.array([theta_pg, theta_pa]), coeffs_spatial_ret_psg, coeffs_spatial_ang_psg, coeffs_spatial_ret_psa, coeffs_spatial_ang_psa])
-    power_experiment = forward_simulate(x0_truth, NMODES, NMEAS)
-
-    # plot the ground truth retardance and angles
-    retardance_psg = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ret_psg)
-    retardance_psa = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ret_psa)
-    angle_psg = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ang_psg)
-    angle_psa = sum_of_2d_modes_wrapper(basis, coeffs_spatial_ang_psa)
-
-    if PLOT_INTERMEDIATES:
-        plt.figure(figsize=[9.5,8])
-        plt.subplot(221)
-        vlim_ret = 3
-        vlim_ang = .3
-        plt.title("Polarization State Generator")
-        plt.imshow(np.degrees(retardance_psg) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
-        plt.colorbar()
-        plt.xticks([],[])
-        plt.yticks([],[])
-        plt.ylabel("Retardance")
-        plt.subplot(222)
-        plt.title("Polarization State Analyzer")
-        plt.imshow(np.degrees(retardance_psa) / A, cmap="PuOr_r", vmin=90 - vlim_ret, vmax=90 + vlim_ret)
-        plt.colorbar(label="Retardance, deg")
-        plt.xticks([],[])
-        plt.yticks([],[])
-        plt.subplot(223)
-        plt.imshow(np.degrees(angle_psg) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psg[A==1])) - vlim_ang,
-                                                            vmax=np.mean(np.degrees(angle_psg[A==1])) + vlim_ang)
-        plt.colorbar()
-        plt.xticks([],[])
-        plt.yticks([],[])
-        plt.ylabel("Fast Axis Angle")
-        plt.subplot(224)
-        plt.imshow(np.degrees(angle_psa) / A, cmap="PiYG_r", vmin=np.mean(np.degrees(angle_psa[A==1])) - vlim_ang,
-                                                            vmax=np.mean(np.degrees(angle_psa[A==1])) + vlim_ang)
-        plt.colorbar(label="Fast Axis Angle, deg")
-        plt.xticks([],[])
-        plt.yticks([],[])
-        # plt.show()
-
-    mean_power = []
-    frame_photons = N_PHOTONS * power_experiment
-    mean_power = np.mean(frame_photons[LS==1],axis=0)
-    # for i in range(NMEAS):
-    #     frame = power_experiment[..., i]
-    #     mean_power.append(np.mean(((N_PHOTONS * frame[LS==1]))))
 
     plt.figure()
-    plt.plot(mean_power, marker="o", linestyle="None", markersize=10)
+    plt.plot(mean_power, marker="o", markersize=10, label="left")
     plt.ylabel("Mean Power, A.U")
     plt.xlabel("Frame Index")
     plt.title("Air Calibration")
-    # plt.show()
+    plt.show()
 
     # Init some guess parameters
     tnp.random.seed(123)
@@ -444,86 +501,93 @@ if __name__ == "__main__":
 
     x0 = np.array([theta_pa, theta_pg, ret_pg, fast_pg, ret_pa, fast_pa])
 
-    def loss(x, NMODES=NMODES, NMEAS=NMEAS):
-        diff = forward_simulate_ignorant(x, NMODES, NMEAS, mask=LS) - mean_power
-        diffsq = diff**2
-        return np.sum(diffsq)
-
-    def callback(xk):
-        pbar.update(1)
-
-    with tqdm(total=MAX_ITERS) as pbar:
-        results = minimize(loss, x0=x0, callback=callback, method="L-BFGS-B", jac=False,
-                        options={"maxiter": MAX_ITERS, "disp":False})
-
+    lyot_stop = circle(0.8, r)
     psg_angles_highsample = np.linspace(0, 180, 1000)
-    psg_angles = np.linspace(0, 180, NMEAS)
-    x0_results = pack_ignorant_data(results.x, NMODES)
-    power_modeled = forward_simulate_pupil_avg(x0_results, NMODES, NMEAS=1000, mask=LS)
-    power_pupil = forward_simulate(x0_results, NMODES, NMEAS)
 
-    if PLOT_INTERMEDIATES:
+    if DO_FINITE_DIFF:
+        
+        def loss(x, NMODES=NMODES, NMEAS=NMEAS):
+            scaled_mean_power_left = mean_power / mean_power.max() / 2
+            diff = forward_simulate_ignorant(x, NMODES, NMEAS, mask=LS) - scaled_mean_power_left
+            diffsq = diff**2
+            return np.sum(diffsq)
+
+
+        results = minimize(loss, x0=x0, method="L-BFGS-B", jac=False,
+                        options={"maxiter": 10, "disp":False})
+
+
+
+        psg_angles = np.linspace(0, 180, NMEAS)
+        x0_results = pack_ignorant_data(results.x, NMODES)
+        power_modeled = forward_simulate_pupil_avg(x0_results, NMODES, NMEAS=1000, mask=LS)
+        power_pupil = forward_simulate(x0_results, NMODES, NMEAS)
+
         plt.figure()
         plt.imshow(power_pupil[...,1] / A)
         plt.colorbar()
 
         plt.figure()
-        plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="Power Measured")
+        plt.plot(psg_angles, mean_power / mean_power.max() / 2, marker="o", linestyle="None", markersize=10, label="Power Measured")
         plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="Power Modeled")
         plt.ylabel("Mean Power, A.U")
         plt.xlabel("PSG Angle, degrees")
         plt.title("Pupil-averaged Air Calibration")
         plt.legend()
-
-    psg_pol = linear_polarizer(results.x[0], shape=[NPIX, NPIX, NMEAS])
-    psa_pol = linear_polarizer(results.x[1], shape=[NPIX, NPIX, NMEAS])
-
-    psg_wvp = linear_retarder(results.x[3] + np.radians(psg_angles), results.x[2], shape=[NPIX, NPIX, NMEAS])
-    psa_wvp = linear_retarder(results.x[5] + (np.radians(psg_angles) * 2.5), results.x[4], shape=[NPIX, NPIX, NMEAS])
-
-    PSG = (psg_wvp @ psg_pol)
-    PSA = (psa_pol @ psa_wvp)
-    Winv = drrp_data_reduction_matrix(PSG, PSA, invert=True)
-
-    M_meas = Winv @ (N_PHOTONS * (power_experiment - 1e-7))[..., None]
-    M_meas = np.reshape(M_meas[..., 0], [NPIX, NPIX, 4, 4])
-
-    lyot_stop = circle(0.8, r)
-    plt.style.use("default")
-
-    if PLOT_INTERMEDIATES:
-        plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)
-
-
-    # offset_retardation = 1e-1
-    M_norm = M_meas / M_meas[..., 0, 0, None, None]
-    # M_norm[..., 1, 1] = M_norm[..., 1, 1] - np.sin(offset_retardation)
-    # M_norm[..., 2, 2] = M[..., 2, 2] + offset_retardation
-    # M_norm[..., 3, 3] = M[..., 3, 3] + offset_retardation
-
-    from katsu.mueller import retardance_from_mueller
-    ret = retardance_from_mueller_taylor(M_norm * lyot_stop[..., None, None])
-    ret -= np.mean(ret[lyot_stop==1])
-
-
-    if PLOT_INTERMEDIATES:
-        plt.figure(figsize=[12,4])
-        plt.style.use("bmh")
-        plt.subplot(121)
-        plt.plot(psg_angles, mean_power, marker="o", linestyle="none", markersize=10, label="power measured")
-        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
-        plt.ylabel("mean power, a.u")
-        plt.xlabel("psg angle, degrees")
-        plt.title("pupil-averaged air calibration")
-        plt.legend()
-
-        plt.subplot(122)
-        plt.title("retardance measured of air")
-        plt.imshow(np.degrees(ret) / lyot_stop * lyot_stop, cmap="RdBu_r")
-        plt.colorbar(label="retardance, deg")
-        plt.xticks([],[])
-        plt.yticks([],[])
         plt.show()
+
+        psg_pol = linear_polarizer(results.x[0], shape=[NPIX, NPIX, NMEAS])
+        psa_pol = linear_polarizer(results.x[1], shape=[NPIX, NPIX, NMEAS])
+
+        psg_wvp = linear_retarder(results.x[3] + np.radians(psg_angles), results.x[2], shape=[NPIX, NPIX, NMEAS])
+        psa_wvp = linear_retarder(results.x[5] + (np.radians(psg_angles) * 2.5), results.x[4], shape=[NPIX, NPIX, NMEAS])
+
+        PSG = (psg_wvp @ psg_pol)
+        PSA = (psa_pol @ psa_wvp)
+        Winv = drrp_data_reduction_matrix(PSG, PSA, invert=True)
+
+        # make frames the right shape
+        frames = frames[:, 0]
+        frames = np.moveaxis(frames, 0, -1)
+
+        M_meas = Winv @ (N_PHOTONS * (frames - 1e-7))[..., None]
+        M_meas = np.reshape(M_meas[..., 0], [NPIX, NPIX, 4, 4])
+
+        plt.style.use("default")
+
+        if PLOT_INTERMEDIATES:
+            plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)
+
+
+        # offset_retardation = 1e-1
+        M_norm = M_meas / M_meas[..., 0, 0, None, None]
+        # M_norm[..., 1, 1] = M_norm[..., 1, 1] - np.sin(offset_retardation)
+        # M_norm[..., 2, 2] = M[..., 2, 2] + offset_retardation
+        # M_norm[..., 3, 3] = M[..., 3, 3] + offset_retardation
+
+        from katsu.mueller import retardance_from_mueller
+        ret = retardance_from_mueller_taylor(M_norm * lyot_stop[..., None, None])
+        ret -= np.mean(ret[lyot_stop==1])
+
+
+        if PLOT_INTERMEDIATES:
+            plt.figure(figsize=[12,4])
+            plt.style.use("bmh")
+            plt.subplot(121)
+            plt.plot(psg_angles, mean_power, marker="o", linestyle="none", markersize=10, label="power measured")
+            plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+            plt.ylabel("mean power, a.u")
+            plt.xlabel("psg angle, degrees")
+            plt.title("pupil-averaged air calibration")
+            plt.legend()
+
+            plt.subplot(122)
+            plt.title("retardance measured of air")
+            plt.imshow(np.degrees(ret) / lyot_stop * lyot_stop, cmap="RdBu_r")
+            plt.colorbar(label="retardance, deg")
+            plt.xticks([],[])
+            plt.yticks([],[])
+            plt.show()
 
     ## performing the spatial calibration
     # init retardance, psg
@@ -542,11 +606,14 @@ if __name__ == "__main__":
 
     x0 = np.concatenate([np.array([theta_pg, theta_pa]), coeffs_spatial_ret_psg, coeffs_spatial_ang_psg, coeffs_spatial_ret_psa, coeffs_spatial_ang_psa])
 
-
     if BACKEND == "jax":
         set_backend_to_jax()
-
+    
+    psg_angles = np.asarray(psg_angles)
+    power_experiment = power_experiment[:, 0]
+    power_experiment = np.moveaxis(power_experiment, 0, -1)
     power_experiment_masked = np.copy(power_experiment)
+
     if BACKEND == "jax":
         power_experiment_masked = power_experiment_masked.at[np.isnan(power_experiment)].set(1e-10)
     else:
@@ -557,8 +624,8 @@ if __name__ == "__main__":
 
     def loss_jax(x, NMODES=NMODES, NMEAS=NMEAS):
         diff = forward_simulate(x, NMODES, NMEAS) - power_experiment_masked
-        diffsq = diff**2
-        return np.sum(diffsq[A==1])
+        diffsq = diff[A==1]**2
+        return np.sum(diffsq)
 
     loss_fg = value_and_grad(loss_jax)
 
@@ -567,16 +634,16 @@ if __name__ == "__main__":
     with tqdm(total=MAX_ITERS) as pbar:
 
         if BACKEND == "jax":
-            results_jax = minimize(loss_fg, x0=x0, callback=callback, method="L-BFGS-B", jac=True,
-                            options={"maxiter": MAX_ITERS, "disp":False})
+            results_jax = minimize(loss_fg, x0=x0, method="L-BFGS-B", jac=True,
+                            options={"maxiter": MAX_ITERS, "disp":True, "ftol":1e-10})
         if BACKEND == "numpy":
-            results_numpy = minimize(loss_jax, x0=x0, callback=callback, method="L-BFGS-B", jac=False,
+            results_numpy = minimize(loss_jax, x0=x0, method="L-BFGS-B", jac=False,
                             options={"maxiter": MAX_ITERS, "disp":False})
             results_jax = results_numpy
     runtime = time.perf_counter() - t1
 
     # Did we actually re-create the retardance / fast axis?
-    vlim_ret = 3
+    vlim_ret = 180
     vlim_ang = 0.6
     cmap = "coolwarm"
     scale = 3600
@@ -596,23 +663,23 @@ if __name__ == "__main__":
         plt.figure(figsize=[9.5,8])
         plt.subplot(221)
         plt.title("Polarization State Generator")
-        plt.imshow(np.degrees(retardance_psg_modeled - retardance_psg) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
+        plt.imshow(np.degrees(retardance_psg_modeled) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
         plt.colorbar()
         plt.xticks([],[])
         plt.yticks([],[])
         plt.subplot(222)
         plt.title("Polarization State Analyzer")
-        plt.imshow(np.degrees(retardance_psa_modeled - retardance_psa) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
+        plt.imshow(np.degrees(retardance_psa_modeled) * scale / A, cmap=cmap, vmin=-vlim_ret, vmax=vlim_ret)
         plt.colorbar(label="Retardance Residuals, arcsec")
         plt.xticks([],[])
         plt.yticks([],[])
         plt.subplot(223)
-        plt.imshow(np.degrees(angle_psg_modeled - angle_psg) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
+        plt.imshow(np.degrees(angle_psg_modeled) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
         plt.colorbar()
         plt.xticks([],[])
         plt.yticks([],[])
         plt.subplot(224)
-        plt.imshow(np.degrees(angle_psa_modeled - angle_psa) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
+        plt.imshow(np.degrees(angle_psa_modeled) * scale / A, cmap=cmap, vmin=-vlim_ang, vmax=vlim_ang)
         plt.colorbar(label="Fast Axis Angle Residuals, arcsec")
         plt.xticks([],[])
         plt.yticks([],[])
@@ -683,6 +750,8 @@ if __name__ == "__main__":
     M_ret = decompose_retarder(M_norm)
     ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
     ret -= np.mean(ret[lyot_stop==1])
+
+    ipdb.set_trace()
 
     if PLOT_INTERMEDIATES:
         plt.figure(figsize=[12,4])

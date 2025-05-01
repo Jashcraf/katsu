@@ -11,9 +11,9 @@ okabe_colorblind8.reverse()
 plt.rcParams['axes.prop_cycle'] = mpl.cycler(color=okabe_colorblind8)
 
 
-NMODES = [64]
-RUNTIMES_JAX = [100.86385349999182]
-RUNTIMES_NUMPY = [1885.387258599978]
+NMODES = [8, 16, 32, 64]
+RUNTIMES_JAX = [29.718157300027087, 33.16371909994632, 35.30553690018132, 38.715851000044495]
+RUNTIMES_NUMPY = [106.86078090011142, 229.84310650010593, 654.9272669998463, 1885.387258599978]
 
 plt.figure()
 plt.plot(NMODES, RUNTIMES_NUMPY, marker="x", linestyle="None", markersize=10, label="Numpy")
@@ -22,5 +22,5 @@ plt.ylabel("Runtime, seconds")
 plt.xlabel("Number of Zernike modes")
 plt.title("Spatial Calibration Runtimes")
 plt.legend()
-plt.yscale("log")
+# plt.yscale("log")
 plt.show()
