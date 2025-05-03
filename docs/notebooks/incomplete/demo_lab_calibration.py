@@ -10,31 +10,33 @@ import ipdb
 from skimage.registration import phase_cross_correlation
 from scipy.ndimage import shift
 import warnings
+import jax
 
 
 # Less common imports
 from prysm.coordinates import make_xy_grid, cart_to_polar
 from prysm.polynomials import noll_to_nm, sum_of_2d_modes
-from prysm.polynomials import zernike_nm_sequence
+from prysm.polynomials import zernike_nm_seq as zernike_nm_sequence
 from prysm.geometry import circle
 
 from katsu.mueller import (
     linear_diattenuator,
     linear_retarder,
     linear_polarizer,
-    retardance_from_mueller
+    retardance_from_mueller,
+    decompose_retarder
 )
 
 from katsu.polarimetry import drrp_data_reduction_matrix
 from katsu.katsu_math import np, set_backend_to_jax, broadcast_kron
 
 # derpy polarimeter libraries
-sys.path.append("C:/Users/Work/Desktop/derp_control/")
+# sys.path.append("C:/Users/Work/Desktop/derp_control/")
 from derpy.writing import read_experiment
 from derpy.experiments import forward_calibrate, forward_simulate
 
 # Data loading
-DATA_PTH = Path.home() / "Box/97_Data/derp/20250210_GPI"
+DATA_PTH = Path.home() / "Data/Derpy/"
 CALIBRATION_ID = DATA_PTH / "GPI_HWP_center_air_calibration.msgpack"
 EXPERIMENT_ID = DATA_PTH / "GPI_HWP_center_measure_0.msgpack"
 
@@ -120,14 +122,23 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
     # Start by masking out bad frames
     images = experiment.images[wavelength_id]
     powers = experiment.mean_power_left[wavelength_id]
+    powers_right = experiment.mean_power_right[wavelength_id]
     masked_images = []
     mean_power = []
     psg_angles = []
+    P_ref_l = []
+    P_ref_0 = powers[0] + powers_right[0]
     for i, img in enumerate(images):
         if i not in bad_frames:
             masked_images.append(img)
-            mean_power.append(powers[i])
+            total_power = powers[i] + powers_right[i]
+            P_ref_l.append(total_power)
+            mean_power.append(powers[i] * P_ref_0 / total_power)
             psg_angles.append(experiment.psg_positions_relative[i])
+
+    P_ref_l = P_ref_0 / np.asarray(P_ref_l)
+
+
 
     masked_images = np.asarray(masked_images)
     mean_power = np.asarray(mean_power)
@@ -139,7 +150,7 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
 
     # perform a cropping
     # This just does the registration on the other channel in the first frame
-    dpix, error, diffphase = phase_cross_correlation(reference_image, 
+    dpix, error, diffphase = phase_cross_correlation(reference_image,
                                                       masked_images[reference_frame_index][other_channel])
     shifted_other = shift(masked_images[reference_frame_index][other_channel], dpix)
     cropped_other = shifted_other[crop:-crop, crop:-crop]
@@ -151,14 +162,10 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
             # phase cross correlation to the left frame
             dpix, error, diffphase = phase_cross_correlation(reference_image, img[0])
             masked_images[i, 0] = shift(img[0], dpix)
-            
+
             # phase cross correlation to the right frame
             dpix, error, diffphase = phase_cross_correlation(reference_image, img[1])
             masked_images[i, 1] = shift(img[1], dpix)
-
-    # Scale down to a relative power of 0.5
-    scale_power = 2 * np.max(experiment.mean_power_left[WVL_ID])
-    masked_images /= scale_power
 
     cropped_images = np.zeros([*masked_images.shape[:2],
                               masked_images.shape[2] - 2 * crop,
@@ -167,11 +174,11 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
     # crop all of the images
     for i in range(masked_images.shape[0]):
         if i == reference_frame_index:
-            cropped_images[i, 0] = cropped_reference / scale_power
-            cropped_images[i, 1] = cropped_other / scale_power
+            cropped_images[i, 0] = cropped_reference * P_ref_l[i]
+            cropped_images[i, 1] = cropped_other * P_ref_l[i]
         else:
-            cropped_images[i, 0] = masked_images[i][0,crop:-crop, crop:-crop]
-            cropped_images[i, 1] = masked_images[i][1,crop:-crop, crop:-crop]
+            cropped_images[i, 0] = masked_images[i][0,crop:-crop, crop:-crop]* P_ref_l[i]
+            cropped_images[i, 1] = masked_images[i][1,crop:-crop, crop:-crop]* P_ref_l[i]
 
 
     return cropped_images, mean_power, psg_angles
@@ -458,11 +465,11 @@ if __name__ == "__main__":
     else:
         print("Using default arguments")
         NMODES = 32
-        NMEAS = 50 
+        NMEAS = 50
         MAX_ITERS = 100
         BACKEND = "jax"
         DO_FINITE_DIFF = False
-       
+
     assert BACKEND in ["jax", "numpy"]
 
     frames, mean_power, psg_angles = load_and_pre_process_data(EXPERIMENT_ID,
@@ -505,7 +512,7 @@ if __name__ == "__main__":
     psg_angles_highsample = np.linspace(0, 180, 1000)
 
     if DO_FINITE_DIFF:
-        
+
         def loss(x, NMODES=NMODES, NMEAS=NMEAS):
             scaled_mean_power_left = mean_power / mean_power.max() / 2
             diff = forward_simulate_ignorant(x, NMODES, NMEAS, mask=LS) - scaled_mean_power_left
@@ -575,7 +582,7 @@ if __name__ == "__main__":
             plt.style.use("bmh")
             plt.subplot(121)
             plt.plot(psg_angles, mean_power, marker="o", linestyle="none", markersize=10, label="power measured")
-            plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+            # plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
             plt.ylabel("mean power, a.u")
             plt.xlabel("psg angle, degrees")
             plt.title("pupil-averaged air calibration")
@@ -608,7 +615,7 @@ if __name__ == "__main__":
 
     if BACKEND == "jax":
         set_backend_to_jax()
-    
+
     psg_angles = np.asarray(psg_angles)
     power_experiment = power_experiment[:, 0]
     power_experiment = np.moveaxis(power_experiment, 0, -1)
@@ -743,22 +750,17 @@ if __name__ == "__main__":
     if PLOT_INTERMEDIATES:
         plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=None, vmax=None, common_cbar=False)
 
-
-
-    from katsu.mueller import retardance_from_mueller
-    from katsu.mueller import decompose_retarder
     M_ret = decompose_retarder(M_norm)
     ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
     ret -= np.mean(ret[lyot_stop==1])
 
-    ipdb.set_trace()
 
     if PLOT_INTERMEDIATES:
         plt.figure(figsize=[12,4])
         plt.style.use("bmh")
         plt.subplot(121)
         plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="power measured")
-        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+        #plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
         plt.ylabel("mean power, a.u")
         plt.xlabel("psg angle, degrees")
         plt.title("pupil-averaged air calibration")
@@ -770,8 +772,6 @@ if __name__ == "__main__":
         plt.colorbar(label="retardance, deg")
         plt.xticks([],[])
         plt.yticks([],[])
-
-
         plt.show()
 
     print(f"Finished in {runtime} seconds for NMODES={NMODES}")
