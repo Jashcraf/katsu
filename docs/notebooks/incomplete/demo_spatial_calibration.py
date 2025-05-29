@@ -83,7 +83,7 @@ def plot_square(x,n=4,vmin=None,vmax=None, common_cbar=True):
     if common_cbar:
         ax = plt.gca()
         cbar = plt.colorbar(im, ax=ax)
-    
+
     # plt.show()
 
 
@@ -127,7 +127,7 @@ def construct_zern_basis(r, t, NMODES):
     t : ndarray
         azimuthal coordinate
     NMODES: int
-        Maximum zernike noll index to simulate 
+        Maximum zernike noll index to simulate
 
     Returns
     -------
@@ -139,7 +139,7 @@ def construct_zern_basis(r, t, NMODES):
 
     # Norm = False is required to have unit peak-to-valley
     basis_full = list(zernike_nm_sequence(nms, r, t, norm=False))
-    
+
     A = circle(1, r) # a circular mask to apply to the beam
     basis = [mode * A for mode in basis_full ]
 
@@ -150,7 +150,7 @@ def rotation_matrix(th):
                      [np.sin(th), np.cos(th)]])
 
 def forward_simulate(x, NMODES, NMEAS):
-    """Simulates a polarimetric measurement with 
+    """Simulates a polarimetric measurement with
     spatially-varying data
 
     Parameters
@@ -239,7 +239,7 @@ def forward_simulate(x, NMODES, NMEAS):
 
 
 def forward_simulate_pupil_avg(x, NMODES, NMEAS, mask=None):
-    """Simulates a polarimetric measurement with 
+    """Simulates a polarimetric measurement with
     spatially-varying data and averages over the pupil
 
     Parameters
@@ -400,7 +400,7 @@ if __name__ == "__main__":
     # for i in range(NMEAS):
     #     frame = power_experiment[..., i]
     #     mean_power.append(np.mean(((N_PHOTONS * frame[LS==1]))))
-        
+
     plt.figure()
     plt.plot(mean_power, marker="o", linestyle="None", markersize=10)
     plt.ylabel("Mean Power, A.U")
@@ -439,7 +439,7 @@ if __name__ == "__main__":
     power_modeled = forward_simulate_pupil_avg(x0_results, NMODES, NMEAS=1000, mask=LS)
     power_pupil = forward_simulate(x0_results, NMODES, NMEAS)
 
-    if PLOT_INTERMEDIATES: 
+    if PLOT_INTERMEDIATES:
         plt.figure()
         plt.imshow(power_pupil[...,1] / A)
         plt.colorbar()
@@ -467,10 +467,10 @@ if __name__ == "__main__":
 
     lyot_stop = circle(0.8, r)
     plt.style.use("default")
-    
+
     if PLOT_INTERMEDIATES:
-        plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)    
-     
+        plot_square(M_meas / M_meas[..., 0, 0, None, None] / lyot_stop[...,None,None], vmin=-1.1, vmax=1.1, common_cbar=False)
+
 
     # offset_retardation = 1e-1
     M_norm = M_meas / M_meas[..., 0, 0, None, None]
@@ -501,7 +501,7 @@ if __name__ == "__main__":
         plt.xticks([],[])
         plt.yticks([],[])
         plt.show()
-    
+
     ## performing the spatial calibration
     # init retardance, psg
     coeffs_spatial_ret_psg = np.zeros(len(basis))
@@ -518,17 +518,17 @@ if __name__ == "__main__":
     coeffs_spatial_ang_psa = np.zeros(len(basis))
 
     x0 = np.concatenate([np.array([theta_pg, theta_pa]), coeffs_spatial_ret_psg, coeffs_spatial_ang_psg, coeffs_spatial_ret_psa, coeffs_spatial_ang_psa])
-        
-    
+
+
     if BACKEND == "jax":
         set_backend_to_jax()
-    
+
     power_experiment_masked = np.copy(power_experiment)
     if BACKEND == "jax":
         power_experiment_masked = power_experiment_masked.at[np.isnan(power_experiment)].set(1e-10)
     else:
         power_experiment_masked[np.isnan(power_experiment)] = 1e-10
-    
+
     # need to define a new loss function
     from jax import value_and_grad
 
@@ -551,7 +551,7 @@ if __name__ == "__main__":
                             options={"maxiter": MAX_ITERS, "disp":False})
             results_jax = results_numpy
     runtime = time.perf_counter() - t1
-     
+
     # Did we actually re-create the retardance / fast axis?
     vlim_ret = 3
     vlim_ang = 0.6
@@ -648,20 +648,20 @@ if __name__ == "__main__":
     # offset_retardation = 1e-1
     M_norm = M_meas / M_meas[..., 0, 0, None, None]
     # M_norm = M_norm.at[..., 1, 1].set(M_norm[..., 1, 1] - np.sin(offset_retardation))
-    
+
     plt.style.use("default")
     if PLOT_INTERMEDIATES:
         plot_square(M_meas / M_meas[...,0,0, None, None] / A[..., None, None], vmin=None, vmax=None, common_cbar=False)
-        
-    
-    
-    from katsu.mueller import retardance_from_mueller
-    from katsu.mueller import decompose_retarder
-    M_ret = decompose_retarder(M_norm)
-    ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
-    ret -= np.mean(ret[lyot_stop==1])
 
-    if PLOT_INTERMEDIATES: 
+
+
+    # from katsu.mueller import retardance_from_mueller
+    # from katsu.mueller import decompose_retarder
+    # M_ret = decompose_retarder(M_norm)
+    # ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
+    # ret -= np.mean(ret[lyot_stop==1])
+
+    if PLOT_INTERMEDIATES:
         plt.figure(figsize=[12,4])
         plt.style.use("bmh")
         plt.subplot(121)
