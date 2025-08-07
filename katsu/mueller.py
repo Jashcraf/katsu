@@ -62,7 +62,7 @@ def stokes_from_parameters(I, Q, U, V, shape=None):
     """
 
     stokes = _empty_stokes(shape)
-    
+
     if np.__name__ == "jax.numpy":
         stokes = stokes.at[..., 0, 0].set(I)
         stokes = stokes.at[..., 1, 0].set(Q)
@@ -199,7 +199,7 @@ def linear_polarizer(a, shape=None):
         M = M.at[..., 2, 2].set(sin2a**2)
 
         M = M / 2
-        
+
     else:
         # fist row
         M[..., 0, 0] = ones
@@ -274,9 +274,9 @@ def linear_retarder(a, r, shape=None):
         M = M.at[..., 3, 1].set(-1 * M[..., 1, 3])
         M = M.at[..., 3, 2].set(-1 * M[..., 2, 3])
         M = M.at[..., 3, 3].set(np.cos(r))
-    
+
     else:
-            
+
         # First row
         M[..., 0, 0] = 1.
 
@@ -308,10 +308,10 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
         angle of the transmission axis w.r.t. horizontal in radians. If numpy
         array, must be the same shape as `shape`
     Tmin : float, or numpy.ndarray
-        Minimum transmission of the state orthogonal to maximum transmission. 
+        Minimum transmission of the state orthogonal to maximum transmission.
         If numpy array, must be the same shape as `shape`
     shape : list, optional
-        shape to prepend to the mueller matrix array, see `_empty_mueller`. 
+        shape to prepend to the mueller matrix array, see `_empty_mueller`.
         By default None
 
     Returns
@@ -345,7 +345,7 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
         # first row
         M = M.at[..., 0, 0].set(A)
         M = M.at[..., 0, 1].set(B*cos2a)
-        M = M.at[..., 0, 2].set(B*sin2a) 
+        M = M.at[..., 0, 2].set(B*sin2a)
 
         # second row
         M = M.at[..., 1, 0].set(M[..., 0, 1])
@@ -389,7 +389,7 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     return M
 
 def wollaston(beam = 0, rotation=0., shape=None):
-    """Method to construct the Mueller matrix of a Wollaston, 
+    """Method to construct the Mueller matrix of a Wollaston,
     Functionally just a hand-hold wrapper for linear_polarizer
 
     Parameters
@@ -413,7 +413,7 @@ def wollaston(beam = 0, rotation=0., shape=None):
     # Ordinary beam
     if (beam == 0) or (beam=="ordinary"):
         return linear_polarizer(rotation, shape=shape)
-    
+
     # Extraordinary beam
     else:
         return linear_polarizer(rotation + np.pi/2, shape=shape)
@@ -459,7 +459,7 @@ def depolarizer(angle, a, b, c, shape=None):
         M = M.at[..., 2, 2].set(b)
         M = M.at[..., 3, 3].set(c)
     else:
-    
+
         M[..., 0, 0] = 1
         M[..., 1, 1] = a
         M[..., 2, 2] = b
@@ -491,7 +491,8 @@ def decompose_diattenuator(M, normalize=False):
 
     if np.__name__ == "jax.numpy":
         if M.ndim > 2:
-            diattenuation_vector = M[..., 0, 1:] / (T.at[..., np.newaxis])
+            T = T.at[..., np.newaxis]
+            diattenuation_vector = M[..., 0, 1:] / (T)
         else:
             diattenuation_vector = M[..., 0, 1:] / (T)
 
@@ -511,7 +512,7 @@ def decompose_diattenuator(M, normalize=False):
 
         if M.ndim > 2:
             I = np.broadcast_to(I, [*M.shape[:-2], 3, 3])
-            mD = mD[..., np.newaxis, np.newaxis] 
+            mD = mD[..., np.newaxis, np.newaxis]
 
         inner_diattenuator = mD * I + (1 - mD) * DD  # Eq. 19 Lu & Chipman
 
@@ -538,7 +539,7 @@ def decompose_diattenuator(M, normalize=False):
             diattenuation_vector = M[..., 0, 1:] / T[..., np.newaxis]
         else:
             diattenuation_vector = M[..., 0, 1:] / T
-        
+
         D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
         mD = np.sqrt(1 - D**2)
 
@@ -593,7 +594,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
         Whether to return the retarder and diattenuator vs just the retarder.
         Defaults to False, which returns both
 
-    Returns 
+    Returns
     -------
     numpy.ndarray
         Retarder component of mueller matrix
@@ -608,7 +609,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
     Mr = M @ np.linalg.inv(Md)
 
     if normalize:
-        Mr = Mr/np.max(np.abs(Mr)) 
+        Mr = Mr/np.max(np.abs(Mr))
     else:
         Mr = Mr
 
@@ -697,7 +698,7 @@ def decompose_depolarizer(M, return_all=False):
 
         else:
             return M_depolarizer
-        
+
     else:
         Pdelta = Mp[..., 1:, 0]
         mp = Mp[..., 1:, 1:]
@@ -836,7 +837,7 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
     Eq. 6.30 in CLY
 
     TODO: Investigate if this is actually the correct order of parameters,
-    I think that horizontal and right-circular might be flipped in the text. 
+    I think that horizontal and right-circular might be flipped in the text.
     Here lies the version which passes the physical test in test_mueller.py,
     so I believe the textboook is wrong.
 
@@ -883,7 +884,7 @@ def diattenuation_parameters_from_mueller(M):
     -------
     numpy.ndarray, numpy.ndarray, numpy.ndarray
         arrays corresponding to horizontal, +45, and RC diattenuation
-    
+
     """
 
     M00 = M[..., 0, 0]
