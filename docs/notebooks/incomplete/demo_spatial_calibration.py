@@ -319,7 +319,7 @@ if __name__ == "__main__":
 
     NPIX = 64
     N_PHOTONS = 1
-    PLOT_INTERMEDIATES = False
+    PLOT_INTERMEDIATES = True
 
     x, y = make_xy_grid(NPIX, diameter=2)
     r, t = cart_to_polar(x, y)
@@ -655,11 +655,11 @@ if __name__ == "__main__":
 
 
 
-    # from katsu.mueller import retardance_from_mueller
-    # from katsu.mueller import decompose_retarder
-    # M_ret = decompose_retarder(M_norm)
-    # ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
-    # ret -= np.mean(ret[lyot_stop==1])
+    from katsu.mueller import retardance_from_mueller
+    from katsu.mueller import decompose_retarder
+    M_ret = decompose_retarder(M_norm)
+    ret = retardance_from_mueller_taylor(M_ret * lyot_stop[..., None, None])
+    ret -= np.mean(ret[lyot_stop==1])
 
     if PLOT_INTERMEDIATES:
         plt.figure(figsize=[12,4])

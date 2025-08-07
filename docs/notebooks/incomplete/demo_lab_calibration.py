@@ -33,7 +33,7 @@ from katsu.katsu_math import np, set_backend_to_jax, broadcast_kron
 # derpy polarimeter libraries
 # sys.path.append("C:/Users/Work/Desktop/derp_control/")
 from derpy.writing import read_experiment
-from derpy.experiments import forward_calibrate, forward_simulate
+from derpy.experiments import forward_calibrate#, forward_simulate
 
 # Data loading
 DATA_PTH = Path.home() / "Data/Derpy/"
@@ -112,12 +112,6 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
     experiment = read_experiment(pth)
 
     # Create a mask to use as a centering reference
-    # x = np.linspace(-1, 1, experiment.images.shape[2])
-    # x, y = np.meshgrid(x, x)
-    # r = np.sqrt(x**2 + y**2)
-    # mask = np.zeros_like(experiment.images[0, 0, 0])
-    # ipdb.set_trace()
-    # extract data
     # experiment.images is shape wavelength, frame, channel, row, col
     # Start by masking out bad frames
     images = experiment.images[wavelength_id]
@@ -125,23 +119,28 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
     powers_right = experiment.mean_power_right[wavelength_id]
     masked_images = []
     mean_power = []
+    mean_total_power = []
     psg_angles = []
     P_ref_l = []
-    P_ref_0 = powers[0] + powers_right[0]
+    P_ref_0 = 1# powers[0] + powers_right[0]
     for i, img in enumerate(images):
         if i not in bad_frames:
-            masked_images.append(img)
-            total_power = powers[i] + powers_right[i]
-            P_ref_l.append(total_power)
-            mean_power.append(powers[i] * P_ref_0 / total_power)
+
+            # Save data about power measurement
+            p_0 = powers[0] + powers_right[0]
+            p_l = powers[i] + powers_right[i]
+            P_ref_l.append(p_l / p_0)
+            mean_power.append(powers[i] * P_ref_0 / P_ref_l[-1])
+            mean_total_power.append((powers[i] + powers_right[i]) * P_ref_0 / P_ref_l[-1])
             psg_angles.append(experiment.psg_positions_relative[i])
 
-    P_ref_l = P_ref_0 / np.asarray(P_ref_l)
+            # Save the actual images
+            masked_images.append(img)
 
-
-
+    P_ref = P_ref_0 / np.asarray(P_ref_l)
     masked_images = np.asarray(masked_images)
     mean_power = np.asarray(mean_power)
+    mean_total_power = np.asarray(mean_total_power)
 
     # now do the phase cross-correlation to center the images
     reference_image = masked_images[reference_frame_index, reference_channel]
@@ -174,14 +173,14 @@ def load_and_pre_process_data(pth, wavelength_id, bad_frames,
     # crop all of the images
     for i in range(masked_images.shape[0]):
         if i == reference_frame_index:
-            cropped_images[i, 0] = cropped_reference * P_ref_l[i]
-            cropped_images[i, 1] = cropped_other * P_ref_l[i]
+            cropped_images[i, 0] = cropped_reference * P_ref[i] / mean_total_power[i] / 2
+            cropped_images[i, 1] = cropped_other * P_ref[i] / mean_total_power[i] / 2
         else:
-            cropped_images[i, 0] = masked_images[i][0,crop:-crop, crop:-crop]* P_ref_l[i]
-            cropped_images[i, 1] = masked_images[i][1,crop:-crop, crop:-crop]* P_ref_l[i]
+            cropped_images[i, 0] = masked_images[i][0,crop:-crop, crop:-crop]* P_ref[i] / mean_total_power[i] / 2
+            cropped_images[i, 1] = masked_images[i][1,crop:-crop, crop:-crop]* P_ref[i] / mean_total_power[i] / 2
 
 
-    return cropped_images, mean_power, psg_angles
+    return cropped_images, mean_power, psg_angles, mean_total_power
 
 
 def arccos_taylor(x):
@@ -472,7 +471,7 @@ if __name__ == "__main__":
 
     assert BACKEND in ["jax", "numpy"]
 
-    frames, mean_power, psg_angles = load_and_pre_process_data(EXPERIMENT_ID,
+    frames, mean_power, psg_angles, mean_total = load_and_pre_process_data(EXPERIMENT_ID,
                                                                WVL_ID, BAD_FRAMES,
                                                                shiftx=13, shifty=-15)
     NMEAS -= len(BAD_FRAMES)
@@ -486,7 +485,6 @@ if __name__ == "__main__":
     A = circle(1, r)
     LS = circle(0.9, r)
     basis = construct_zern_basis(r, t, NMODES+1)
-
 
     plt.figure()
     plt.plot(mean_power, marker="o", markersize=10, label="left")
@@ -522,8 +520,6 @@ if __name__ == "__main__":
 
         results = minimize(loss, x0=x0, method="L-BFGS-B", jac=False,
                         options={"maxiter": 10, "disp":False})
-
-
 
         psg_angles = np.linspace(0, 180, NMEAS)
         x0_results = pack_ignorant_data(results.x, NMODES)
@@ -638,6 +634,9 @@ if __name__ == "__main__":
 
     print(f"Beginning timer for NMODES={NMODES}")
     t1 = time.perf_counter()
+
+    ipdb.set_trace()
+
     with tqdm(total=MAX_ITERS) as pbar:
 
         if BACKEND == "jax":
@@ -648,6 +647,12 @@ if __name__ == "__main__":
                             options={"maxiter": MAX_ITERS, "disp":False})
             results_jax = results_numpy
     runtime = time.perf_counter() - t1
+
+    # ipdb.set_trace()
+
+    # Construct simulated power
+    psg_angles_highsample = np.linspace(0, 180, 100)
+    power_modeled = forward_simulate_pupil_avg(results_jax.x, NMODES, 100, mask=A)
 
     # Did we actually re-create the retardance / fast axis?
     vlim_ret = 180
@@ -759,8 +764,8 @@ if __name__ == "__main__":
         plt.figure(figsize=[12,4])
         plt.style.use("bmh")
         plt.subplot(121)
-        plt.plot(psg_angles, mean_power, marker="o", linestyle="None", markersize=10, label="power measured")
-        #plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
+        plt.plot(psg_angles, mean_power / np.asarray(mean_total) / 2, marker="o", linestyle="None", markersize=10, label="power measured")
+        plt.plot(psg_angles_highsample, power_modeled, linestyle="solid", label="power modeled")
         plt.ylabel("mean power, a.u")
         plt.xlabel("psg angle, degrees")
         plt.title("pupil-averaged air calibration")
