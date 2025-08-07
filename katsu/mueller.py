@@ -661,9 +661,9 @@ def decompose_depolarizer(M, return_all=False):
         e3 = np.sqrt(evals[..., 2])
 
         if M.ndim > 2:
-            e1 = e1.at[..., np.newaxis, np.newaxis]
-            e2 = e2.at[..., np.newaxis, np.newaxis]
-            e3 = e3.at[...,  np.newaxis, np.newaxis]
+            e1 = e1[..., np.newaxis, np.newaxis]
+            e2 = e2[..., np.newaxis, np.newaxis]
+            e3 = e3[...,  np.newaxis, np.newaxis]
 
         e1e2 = e1 * e2
         e2e3 = e2 * e3
