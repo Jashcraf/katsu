@@ -9,7 +9,7 @@ import sys
 # Less common imports
 from prysm.coordinates import make_xy_grid, cart_to_polar
 from prysm.polynomials import noll_to_nm, sum_of_2d_modes
-from prysm.polynomials import zernike_nm_sequence
+from prysm.polynomials import zernike_nm_seq as zernike_nm_sequence
 from prysm.geometry import circle
 
 from katsu.mueller import (
