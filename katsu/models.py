@@ -43,11 +43,13 @@ class MuellerMatrix(zdx.Base):
     def __matmul__(self, other):
         if hasattr(other, "matrix"):
             return MuellerMatrix(self.matrix @ other.matrix)
+
         # Handle jax arrays, numpy arrays, or other array-likes safely
         elif hasattr(other, "shape") and len(getattr(other, "shape", ())) == 2:
             return MuellerMatrix(self.matrix @ other)
+
         else:
-            return NotImplemented
+            return NotImplemented, "Unsupported operand type: " + str(type(other))
 
     def __rmatmul__(self, other):
         if hasattr(other, "shape") and len(getattr(other, "shape", ())) == 2:
@@ -94,11 +96,6 @@ class LinearRetarder(MuellerMatrix):
     def params(self):
         return (self._fast_axis, self._retardance)
 
-    def matrix_from_params(self, p):
-        if self.n_params == 0:
-            return self.matrix
-        return linear_retarder(p[0], p[1])
-
     @classmethod
     def as_quarter_wave_plate(cls, fast_axis, variable=False):
         """Quarter-wave plate (retardance = π/2)."""
@@ -108,6 +105,23 @@ class LinearRetarder(MuellerMatrix):
     def as_half_wave_plate(cls, fast_axis, variable=False):
         """Half-wave plate (retardance = π)."""
         return cls(fast_axis, np.pi, variable=variable)
+
+    def update(self, x):
+        """
+        Update the model parameters and matrix from the given vector `x`.
+
+        Parameters
+        ----------
+        x : array-like
+            The vector of parameters to update the model with.
+        """
+
+        # handle case for fixed diattenuation
+        if self.n_params == 1:
+            self.matrix = linear_retarder(x[0], self._retardance)
+        else:
+            self.matrix = linear_retarder(x[0], x[1])
+        return self.matrix
 
 
 class LinearDiattenuator(MuellerMatrix):
@@ -138,15 +152,30 @@ class LinearDiattenuator(MuellerMatrix):
     def params(self):
         return (self._transmission_axis, self._Tmin)
 
-    def matrix_from_params(self, p):
-        if self.n_params == 0:
-            return self.matrix
-        return linear_diattenuator(p[0], p[1])
-
     @classmethod
     def as_polarizer(cls, transmission_axis, variable=False):
         """Ideal linear polarizer (Tmin = 0)."""
-        return cls(transmission_axis, 0.0, variable=variable)
+        instance = cls(transmission_axis, 0.0, variable=variable)
+        if variable and instance._Tmin == 0.0:
+            instance.n_params = 1
+        return instance
+
+    def update(self, x):
+        """
+        Update the model parameters and matrix from the given vector `x`.
+
+        Parameters
+        ----------
+        x : array-like
+            The vector of parameters to update the model with.
+        """
+
+        # handle case for fixed diattenuation
+        if self.n_params == 1:
+            self.matrix = linear_diattenuator(x[0], 0.0)
+        else:
+            self.matrix = linear_diattenuator(x[0], x[1])
+        return self.matrix
 
 
 class Model(zdx.Base):
