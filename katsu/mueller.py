@@ -1,4 +1,4 @@
-from .katsu_math import broadcast_outer, np
+from .katsu_math import broadcast_outer, config, np
 
 
 def _empty_stokes(shape):
@@ -23,14 +23,12 @@ def _empty_stokes(shape):
     """
 
     if shape is None:
-
         shape = (4, 1)
 
     else:
-
         shape = (*shape, 4, 1)
 
-    return np.zeros(shape)
+    return np.zeros(shape, dtype=config.precision)
 
 
 def stokes_from_parameters(I, Q, U, V, shape=None):
@@ -99,14 +97,12 @@ def _empty_mueller(shape):
     """
 
     if shape is None:
-
         shape = (4, 4)
 
     else:
-
         shape = (*shape, 4, 4)
 
-    return np.zeros(shape)
+    return np.zeros(shape, dtype=config.precision)
 
 
 def mueller_rotation(angle, shape=None):
@@ -259,36 +255,35 @@ def linear_retarder(a, r, shape=None):
 
     if np.__name__ == "jax.numpy":
         # First row
-        M = M.at[..., 0, 0].set(1.)
+        M = M.at[..., 0, 0].set(1.0)
 
         # second row
-        M = M.at[..., 1, 1].set(np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2)
-        M = M.at[..., 1, 2].set((1-np.cos(r))*np.cos(2*a)*np.sin(2*a))
-        M = M.at[..., 1, 3].set(-np.sin(r)*np.sin(2*a))
+        M = M.at[..., 1, 1].set(np.cos(2 * a) ** 2 + np.cos(r) * np.sin(2 * a) ** 2)
+        M = M.at[..., 1, 2].set((1 - np.cos(r)) * np.cos(2 * a) * np.sin(2 * a))
+        M = M.at[..., 1, 3].set(-np.sin(r) * np.sin(2 * a))
 
         # third row
         M = M.at[..., 2, 1].set(M[..., 1, 2])
-        M = M.at[..., 2, 2].set(np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2)
-        M = M.at[..., 2, 3].set(np.cos(2*a)*np.sin(r))
+        M = M.at[..., 2, 2].set(np.cos(r) * np.cos(2 * a) ** 2 + np.sin(2 * a) ** 2)
+        M = M.at[..., 2, 3].set(np.cos(2 * a) * np.sin(r))
 
         M = M.at[..., 3, 1].set(-1 * M[..., 1, 3])
         M = M.at[..., 3, 2].set(-1 * M[..., 2, 3])
         M = M.at[..., 3, 3].set(np.cos(r))
 
     else:
-
         # First row
-        M[..., 0, 0] = 1.
+        M[..., 0, 0] = 1.0
 
         # second row
-        M[..., 1, 1] = np.cos(2*a)**2 + np.cos(r)*np.sin(2*a)**2
-        M[..., 1, 2] = (1-np.cos(r))*np.cos(2*a)*np.sin(2*a)
-        M[..., 1, 3] = -np.sin(r)*np.sin(2*a)
+        M[..., 1, 1] = np.cos(2 * a) ** 2 + np.cos(r) * np.sin(2 * a) ** 2
+        M[..., 1, 2] = (1 - np.cos(r)) * np.cos(2 * a) * np.sin(2 * a)
+        M[..., 1, 3] = -np.sin(r) * np.sin(2 * a)
 
         # third row
         M[..., 2, 1] = M[..., 1, 2]
-        M[..., 2, 2] = np.cos(r)*np.cos(2*a)**2 + np.sin(2*a)**2
-        M[..., 2, 3] = np.cos(2*a)*np.sin(r)
+        M[..., 2, 2] = np.cos(r) * np.cos(2 * a) ** 2 + np.sin(2 * a) ** 2
+        M[..., 2, 3] = np.cos(2 * a) * np.sin(r)
 
         M[..., 3, 1] = -1 * M[..., 1, 3]
         M[..., 3, 2] = -1 * M[..., 2, 3]
@@ -344,8 +339,8 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
     if np.__name__ == "jax.numpy":
         # first row
         M = M.at[..., 0, 0].set(A)
-        M = M.at[..., 0, 1].set(B*cos2a)
-        M = M.at[..., 0, 2].set(B*sin2a)
+        M = M.at[..., 0, 1].set(B * cos2a)
+        M = M.at[..., 0, 2].set(B * sin2a)
 
         # second row
         M = M.at[..., 1, 0].set(M[..., 0, 1])
@@ -364,11 +359,10 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
         M = M / 2
 
     else:
-
         # first row
         M[..., 0, 0] = A
-        M[..., 0, 1] = B*cos2a
-        M[..., 0, 2] = B*sin2a
+        M[..., 0, 1] = B * cos2a
+        M[..., 0, 2] = B * sin2a
 
         # second row
         M[..., 1, 0] = M[..., 0, 1]
@@ -388,7 +382,8 @@ def linear_diattenuator(a, Tmin, Tmax=1, shape=None):
 
     return M
 
-def wollaston(beam = 0, rotation=0., shape=None):
+
+def wollaston(beam=0, rotation=0.0, shape=None):
     """Method to construct the Mueller matrix of a Wollaston,
     Functionally just a hand-hold wrapper for linear_polarizer
 
@@ -411,12 +406,13 @@ def wollaston(beam = 0, rotation=0., shape=None):
     """
 
     # Ordinary beam
-    if (beam == 0) or (beam=="ordinary"):
+    if (beam == 0) or (beam == "ordinary"):
         return linear_polarizer(rotation, shape=shape)
 
     # Extraordinary beam
     else:
-        return linear_polarizer(rotation + np.pi/2, shape=shape)
+        return linear_polarizer(rotation + np.pi / 2, shape=shape)
+
 
 def depolarizer(angle, a, b, c, shape=None):
     """returns a diagonal depolarizer
@@ -453,13 +449,11 @@ def depolarizer(angle, a, b, c, shape=None):
         c = np.broadcast_to(c, [*M.shape[:-2]])
 
     if np.__name__ == "jax.numpy":
-
         M = M.at[..., 0, 0].set(1)
         M = M.at[..., 1, 1].set(a)
         M = M.at[..., 2, 2].set(b)
         M = M.at[..., 3, 3].set(c)
     else:
-
         M[..., 0, 0] = 1
         M[..., 1, 1] = a
         M[..., 2, 2] = b
@@ -497,7 +491,7 @@ def decompose_diattenuator(M, normalize=False):
 
         # D = np.sqrt(np.sum(np.matmul(diattenuation_vector, diattenuation_vector), axis=-1))
         D = np.sqrt(np.sum(diattenuation_vector * diattenuation_vector, axis=-1))
-        mD = np.sqrt(1 - D ** 2)
+        mD = np.sqrt(1 - D**2)
 
         if M.ndim > 2:
             diattenutation_norm = diattenuation_vector / (D[..., None])
@@ -518,7 +512,7 @@ def decompose_diattenuator(M, normalize=False):
         Md = _empty_mueller(M.shape[:-2])
 
         # Eq 18 Lu & Chipman
-        Md = Md.at[..., 0, 0].set(1.)
+        Md = Md.at[..., 0, 0].set(1.0)
         Md = Md.at[..., 0, 1:].set(diattenuation_vector)
         Md = Md.at[..., 1:, 0].set(diattenuation_vector)
         Md = Md.at[..., 1:, 1:].set(inner_diattenuator)
@@ -529,7 +523,7 @@ def decompose_diattenuator(M, normalize=False):
             Md = Md * T
 
         if normalize:
-            return Md/np.max(np.abs(Md))
+            return Md / np.max(np.abs(Md))
         else:
             return Md
 
@@ -561,7 +555,7 @@ def decompose_diattenuator(M, normalize=False):
         Md = _empty_mueller(M.shape[:-2])
 
         # Eq 18 Lu & Chipman
-        Md[..., 0, 0] = 1.
+        Md[..., 0, 0] = 1.0
         Md[..., 0, 1:] = diattenuation_vector
         Md[..., 1:, 0] = diattenuation_vector
         Md[..., 1:, 1:] = inner_diattenuator
@@ -572,7 +566,7 @@ def decompose_diattenuator(M, normalize=False):
             Md = Md * T
 
         if normalize:
-            return Md/np.max(np.abs(Md))
+            return Md / np.max(np.abs(Md))
         else:
             return Md
 
@@ -608,7 +602,7 @@ def decompose_retarder(M, return_all=False, normalize=False):
     Mr = M @ np.linalg.inv(Md)
 
     if normalize:
-        Mr = Mr/np.max(np.abs(Mr))
+        Mr = Mr / np.max(np.abs(Mr))
     else:
         Mr = Mr
 
@@ -663,7 +657,7 @@ def decompose_depolarizer(M, return_all=False):
         if M.ndim > 2:
             e1 = e1[..., np.newaxis, np.newaxis]
             e2 = e2[..., np.newaxis, np.newaxis]
-            e3 = e3[...,  np.newaxis, np.newaxis]
+            e3 = e3[..., np.newaxis, np.newaxis]
 
         e1e2 = e1 * e2
         e2e3 = e2 * e3
@@ -674,22 +668,25 @@ def decompose_depolarizer(M, return_all=False):
         I = np.eye(3)
         I = np.broadcast_to(I, [*mm.shape[:-2], *I.shape])
 
-        lhs = mm + (e1e2 + e2e3 + e3e1)*I
-        rhs = (e1 + e2 + e3)*mm + e1e2e3*I
+        lhs = mm + (e1e2 + e2e3 + e3e1) * I
+        rhs = (e1 + e2 + e3) * mm + e1e2e3 * I
 
         # Cases for postitive / negative determinant
         md = np.zeros_like(mm)
-        md = md.at[det_mm < 0.].set((-np.linalg.inv(lhs) @ rhs)[det_mm < 0.])
-        md = md.at[det_mm > 0.].set((np.linalg.inv(lhs) @ rhs)[det_mm > 0.])
+        md = md.at[det_mm < 0.0].set((-np.linalg.inv(lhs) @ rhs)[det_mm < 0.0])
+        md = md.at[det_mm > 0.0].set((np.linalg.inv(lhs) @ rhs)[det_mm > 0.0])
 
         # populate the depolarizer
         M_depolarizer = np.zeros_like(M)
         M_depolarizer = M_depolarizer.at[..., 1:, 0].set(Pdelta)
         M_depolarizer = M_depolarizer.at[..., 1:, 1:].set(md)
-        M_depolarizer = M_depolarizer.at[..., 0, 0,].set(1.)
+        M_depolarizer = M_depolarizer.at[
+            ...,
+            0,
+            0,
+        ].set(1.0)
 
         if return_all:
-
             # compute the retarder
             M_retarder = np.linalg.inv(M_depolarizer) @ Mp
 
@@ -727,22 +724,25 @@ def decompose_depolarizer(M, return_all=False):
         I = np.eye(3)
         I = np.broadcast_to(I, [*mm.shape[:-2], *I.shape])
 
-        lhs = mm + (e1e2 + e2e3 + e3e1)*I
-        rhs = (e1 + e2 + e3)*mm + e1e2e3*I
+        lhs = mm + (e1e2 + e2e3 + e3e1) * I
+        rhs = (e1 + e2 + e3) * mm + e1e2e3 * I
 
         # Cases for postitive / negative determinant
         md = np.zeros_like(mm)
-        md[det_mm < 0.] = (-np.linalg.inv(lhs) @ rhs)[det_mm < 0.]
-        md[det_mm > 0.] = (np.linalg.inv(lhs) @ rhs)[det_mm > 0.]
+        md[det_mm < 0.0] = (-np.linalg.inv(lhs) @ rhs)[det_mm < 0.0]
+        md[det_mm > 0.0] = (np.linalg.inv(lhs) @ rhs)[det_mm > 0.0]
 
         # populate the depolarizer
         M_depolarizer = np.zeros_like(M)
         M_depolarizer[..., 1:, 0] = Pdelta
         M_depolarizer[..., 1:, 1:] = md
-        M_depolarizer[..., 0, 0,] = 1.
+        M_depolarizer[
+            ...,
+            0,
+            0,
+        ] = 1.0
 
         if return_all:
-
             # compute the retarder
             M_retarder = np.linalg.inv(M_depolarizer) @ Mp
 
@@ -750,7 +750,6 @@ def decompose_depolarizer(M, return_all=False):
 
         else:
             return M_depolarizer
-
 
 
 def mueller_to_jones(M):
@@ -860,13 +859,15 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
     if np.abs(sinr) < tol:
         horizontal_retardance = np.pi * np.sqrt((M[..., 1, 1] + 1) / 2)
         p45_retardance = np.pi * np.sign(M[..., 1, 2]) * np.sqrt((M[..., 2, 2] + 1) / 2)
-        rightcircular_retardance = np.pi * np.sign(M[..., 1, 3]) * np.sqrt((M[..., 3, 3] + 1) / 2)
+        rightcircular_retardance = (
+            np.pi * np.sign(M[..., 1, 3]) * np.sqrt((M[..., 3, 3] + 1) / 2)
+        )
     else:
         front = retardance / (2 * sinr)
 
-        horizontal_retardance = front * (M[..., 2, 3] - M[..., 3, 2]) # M23 - M32
-        p45_retardance = front * (M[..., 3, 1] - M[..., 1, 3]) # M31 - M13
-        rightcircular_retardance = front * (M[..., 1, 2] - M[..., 2, 1])# M12 - M21
+        horizontal_retardance = front * (M[..., 2, 3] - M[..., 3, 2])  # M23 - M32
+        p45_retardance = front * (M[..., 3, 1] - M[..., 1, 3])  # M31 - M13
+        rightcircular_retardance = front * (M[..., 1, 2] - M[..., 2, 1])  # M12 - M21
 
     return horizontal_retardance, p45_retardance, rightcircular_retardance
 
