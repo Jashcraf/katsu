@@ -167,28 +167,30 @@ class LinearRetarder(MuellerMatrix):
         """
         Update the model parameters and matrix from the given vector `x`.
 
-        This accepts a vector of parameters whose length must match the number
-        of trainable parameters (i.e. 2 for a linear retarder).
-
         Parameters
         ----------
         x : array-like
-            The vector of parameters to update the model with. This is ordered
-            as fast axis, then retardance.
+            The vector of parameters to update the model with.
         """
-        if len(x) != len(self._trainable):
-            raise ValueError(
-                f"Expected {len(self._trainable)} parameters, got {len(x)}"
-            )
 
+        # The following is syntactially unique to zodiax
         # Update free parameters if trainable
-        for i, param in enumerate(self._trainable):
-            if self._trainable[param]:
-                setattr(self, param, x[i])
+        paths = [param for param in self._trainable if self._trainable[param]]
+
+        # Collect the corresponding values from x using their indices
+        values = [
+            x[i] for i, param in enumerate(self._trainable) if self._trainable[param]
+        ]
+
+        # Return a new updated instance
+        self.set(paths, values)
 
         # Update the Mueller matrix
-        self.matrix = linear_retarder(self.fast_axis, self.retardance, shape=self.shape)
-        return self.matrix
+        self.set(
+            "matrix",
+            linear_retarder(self.fast_axis, self.retardance, shape=self.shape),
+        )
+        return self.get("matrix")
 
 
 class LinearDiattenuator(MuellerMatrix):
