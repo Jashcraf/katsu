@@ -249,16 +249,24 @@ class LinearDiattenuator(MuellerMatrix):
             The vector of parameters to update the model with.
         """
 
+        # The following is syntactially unique to zodiax
         # Update free parameters if trainable
-        for i, param in enumerate(self._trainable):
-            if self._trainable[param]:
-                setattr(self, param, x[i])
+        paths = [param for param in self._trainable if self._trainable[param]]
+
+        # Collect the corresponding values from x using their indices
+        values = [
+            x[i] for i, param in enumerate(self._trainable) if self._trainable[param]
+        ]
+
+        # Return a new updated instance
+        self.set(paths, values)
 
         # Update the Mueller matrix
-        self.matrix = linear_diattenuator(
-            self.fast_axis, self.retardance, shape=self.shape
+        self.set(
+            "matrix",
+            linear_diattenuator(self.transmission_axis, self.Tmin, shape=self.shape),
         )
-        return self.matrix
+        return self.get("matrix")
 
 
 class Model(zdx.Base):
@@ -318,7 +326,7 @@ class Model(zdx.Base):
             # Update the system matrix
             system_matrix = optic.matrix @ system_matrix
 
-        self.system_matrix = system_matrix
+        self.set("system_matrix", system_matrix)
 
     def forward(self, x, stokes=None):
         """Compute the forward model / objective function.
