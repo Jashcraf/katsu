@@ -4,7 +4,8 @@ import zodiax as zdx
 
 from katsu.katsu_math import np
 from katsu.mueller import linear_diattenuator, linear_retarder
-
+from katsu.helpers import list2dictionary
+from collections import OrderedDict
 
 def _digest_variables(variable, params):
     """
@@ -31,6 +32,51 @@ def _digest_variables(variable, params):
         return variable
     else:
         raise ValueError(f"Invalid variable type: {type(variable)}")
+
+
+class dLuxMuellerMatrix(zdx.Base):
+    """Base class for differentiable Mueller matrix elements.
+
+    Provides support for Python's matrix multiplication operator (`@`) to allow
+    composing multiple optical elements into a single composite `MuellerMatrix`.
+
+    The key difference from `MuellerMatrix` is that subclasses store only the
+    *physical parameters* (e.g. ``fast_axis``, ``retardance``) as pytree leaves
+    and expose ``matrix`` as a computed ``@property``. The matrix is therefore
+    rebuilt from the current parameters every time it is accessed, which is what
+    makes these objects play nicely with zodiax: a
+    ``model.set("retarder.fast_axis", value)`` swaps the parameter leaf and the
+    next access of ``.matrix`` automatically reflects the update. (If ``matrix``
+    were a stored leaf, ``.set`` on a parameter would leave the cached matrix
+    stale.)
+
+    Subclasses must implement the ``matrix`` property.
+    """
+
+    @property
+    def matrix(self):
+        raise NotImplementedError(
+            "Subclasses of dLuxMuellerMatrix must implement the `matrix` property."
+        )
+
+    def __matmul__(self, other):
+        if hasattr(other, "matrix"):
+            return MuellerMatrix(self.matrix @ other.matrix)
+
+        # Handle jax arrays, numpy arrays, or other array-likes safely
+        # This will return a raw array, not a `MuellerMatrix`, so the type
+        # of the array to the right is maintained
+        elif hasattr(other, "shape") and len(getattr(other, "shape", ())) >= 1:
+            return self.matrix @ other
+
+        else:
+            return NotImplemented
+
+    def __rmatmul__(self, other):
+        if hasattr(other, "shape") and len(getattr(other, "shape", ())) >= 1:
+            return other @ self.matrix
+        else:
+            return NotImplemented
 
 
 class MuellerMatrix(zdx.Base):
@@ -174,23 +220,24 @@ class LinearRetarder(MuellerMatrix):
         """
 
         # The following is syntactially unique to zodiax
-        # Update free parameters if trainable
-        paths = [param for param in self._trainable if self._trainable[param]]
+        # Collect the trainable parameter names and their values from x. The
+        # index into x counts only the trainable params, in declared order.
+        paths, values, j = [], [], 0
+        for param in self._trainable:
+            if self._trainable[param]:
+                paths.append(param)
+                values.append(x[j])
+                j += 1
 
-        # Collect the corresponding values from x using their indices
-        values = [
-            x[i] for i, param in enumerate(self._trainable) if self._trainable[param]
-        ]
+        # zodiax Base objects are immutable; .set() returns a NEW instance
+        new = self.set(paths, values)
 
-        # Return a new updated instance
-        self.set(paths, values)
-
-        # Update the Mueller matrix
-        self.set(
+        # Rebuild the Mueller matrix from the updated parameters
+        new = new.set(
             "matrix",
-            linear_retarder(self.fast_axis, self.retardance, shape=self.shape),
+            linear_retarder(new.fast_axis, new.retardance, shape=new.shape),
         )
-        return self.get("matrix")
+        return new
 
 
 class LinearDiattenuator(MuellerMatrix):
@@ -252,23 +299,92 @@ class LinearDiattenuator(MuellerMatrix):
         """
 
         # The following is syntactially unique to zodiax
-        # Update free parameters if trainable
-        paths = [param for param in self._trainable if self._trainable[param]]
+        # Collect the trainable parameter names and their values from x. The
+        # index into x counts only the trainable params, in declared order.
+        paths, values, j = [], [], 0
+        for param in self._trainable:
+            if self._trainable[param]:
+                paths.append(param)
+                values.append(x[j])
+                j += 1
 
-        # Collect the corresponding values from x using their indices
-        values = [
-            x[i] for i, param in enumerate(self._trainable) if self._trainable[param]
-        ]
+        # zodiax Base objects are immutable; .set() returns a NEW instance
+        new = self.set(paths, values)
 
-        # Return a new updated instance
-        self.set(paths, values)
-
-        # Update the Mueller matrix
-        self.set(
+        # Rebuild the Mueller matrix from the updated parameters
+        new = new.set(
             "matrix",
-            linear_diattenuator(self.transmission_axis, self.Tmin, shape=self.shape),
+            linear_diattenuator(new.transmission_axis, new.Tmin, shape=new.shape),
         )
-        return self.get("matrix")
+        return new
+
+class dLuxDiattenuator(dLuxMuellerMatrix):
+    # Typing required by zodiax/equinox. Only the physical parameters are
+    # leaves; `matrix` is computed from them (see the property below).
+    transmission_axis: float or np.ndarray
+    Tmin: float or np.ndarray
+    shape: tuple or None
+
+    def __init__(self, transmission_axis, Tmin, shape=None):
+        # Do NOT cast to float(): keep values as-is so they stay traceable
+        # under jax (jit/grad) and so array-valued parameters are supported.
+        self.transmission_axis = transmission_axis
+        self.Tmin = Tmin
+        self.shape = shape
+
+    @property
+    def matrix(self):
+        return linear_diattenuator(
+            self.transmission_axis, self.Tmin, shape=self.shape
+        )
+
+
+class dLuxRetarder(dLuxMuellerMatrix):
+    # Typing required by zodiax/equinox. Only the physical parameters are
+    # leaves; `matrix` is computed from them (see the property below).
+    fast_axis: float or np.ndarray
+    retardance: float or np.ndarray
+    shape: tuple or None
+
+    def __init__(self, fast_axis, retardance, shape=None):
+        # These can be floats or ndarrays because katsu accounts for the
+        # difference in shape.
+        self.fast_axis = fast_axis
+        self.retardance = retardance
+        self.shape = shape
+
+    @property
+    def matrix(self):
+        return linear_retarder(
+            self.fast_axis, self.retardance, shape=self.shape
+        )
+
+
+class dLuxModel(zdx.Base):
+    layers: OrderedDict
+
+    def __init__(self, layers):
+
+        # Use dLux helper to digest
+        self.layers = list2dictionary(layers, ordered=True)
+
+    def __getattr__(self, key):
+        if key in self.layers.keys():
+            return self.layers[key]
+        
+        for layer in list(self.layers.values()):
+            if hasattr(layer, key):
+                return getattr(layer, key)
+
+        raise AttributeError(f"Model has no attribute '{key}'")
+
+    # Does forward modeling things
+    def forward(self, stokes):
+        system_matrix = np.eye(4)
+        for layer in list(self.layers.values()):
+            system_matrix = layer @ system_matrix
+
+        return system_matrix @ stokes
 
 
 class Model(zdx.Base):
@@ -318,17 +434,21 @@ class Model(zdx.Base):
         """
         cursor = 0
         system_matrix = np.eye(4)
+        new_optics = []
 
-        for optic, offsets in zip(self.optics, self.offsets):
-            # Update optic variables
+        for optic in self.optics:
+            # Update optic variables. optic.update returns a NEW instance, so
+            # we must capture it rather than mutating in place.
             if optic._n_params > 0:
-                optic.update(x[cursor : cursor + optic._n_params])
+                optic = optic.update(x[cursor : cursor + optic._n_params])
             cursor += optic._n_params
+            new_optics.append(optic)
 
             # Update the system matrix
             system_matrix = optic.matrix @ system_matrix
 
-        self.set("system_matrix", system_matrix)
+        # Return a new Model with the updated optics and system matrix
+        return self.set(["optics", "system_matrix"], [new_optics, system_matrix])
 
     def forward(self, x, stokes=None):
         """Compute the forward model / objective function.
@@ -341,18 +461,18 @@ class Model(zdx.Base):
             The input Stokes vector. Defaults to [1, 0, 0, 0].
 
         """
-        # Update the optics
-        self._update(x)
+        # Update the optics; _update returns a NEW Model instance
+        model = self._update(x)
 
         if stokes is None:
             stokes = np.array([1.0, 0.0, 0.0, 0.0])
 
         # Multiply by stokes
-        final_stokes = system_matrix @ stokes
+        final_stokes = model.system_matrix @ stokes
 
         return final_stokes[..., 0]  # Return intensity observed
 
-    def fg(self, x):
+    def compile_fg(self):
         """Compute both the function value and its gradient.
 
         Parameters
@@ -360,15 +480,18 @@ class Model(zdx.Base):
         x : np.ndarray
             The vector of all optimizeable parameters.
         """
+        # compile _fg_function if not present
         if self._fg_func is None:
             try:
                 import jax
+                _fg = jax.value_and_grad(self.forward)
 
-                self._fg_func = jax.value_and_grad(self.forward)
+
             except ImportError:
                 raise ImportError(
                     "JAX is required for gradient computation. "
                     "Please install it or set the katsu backend to JAX."
                 )
 
-        return self._fg_func(x)
+        return _fg 
+
