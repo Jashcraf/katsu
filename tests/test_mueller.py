@@ -205,10 +205,10 @@ def test_retardance_from_mueller():
 def test_retardance_parameters_from_mueller():
 
     retardance = np.pi / 2
-    M = linear_retarder(0, retardance)
+    M = linear_retarder(np.radians(45), retardance)
     rh, rp, rc = retardance_parameters_from_mueller(M)
 
-    np.testing.assert_allclose((rh, rp, rc), (retardance, 0., 0.))
+    np.testing.assert_allclose((rh, rp, rc), (0, retardance, 0.), atol=1e-10)
 
 
 def test_diattenuation_from_mueller():

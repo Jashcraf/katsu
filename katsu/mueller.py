@@ -835,11 +835,6 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
 
     Eq. 6.30 in CLY
 
-    TODO: Investigate if this is actually the correct order of parameters,
-    I think that horizontal and right-circular might be flipped in the text.
-    Here lies the version which passes the physical test in test_mueller.py,
-    so I believe the textboook is wrong.
-
     Parameters
     ----------
     M : numpy.ndarray
@@ -856,7 +851,8 @@ def retardance_parameters_from_mueller(M, tol=1e-10):
 
     retardance = retardance_from_mueller(M)
     sinr = np.sin(retardance)
-
+    
+    # Special case for half-wave plates
     if np.abs(sinr) < tol:
         horizontal_retardance = np.pi * np.sqrt((M[..., 1, 1] + 1) / 2)
         p45_retardance = np.pi * np.sign(M[..., 1, 2]) * np.sqrt((M[..., 2, 2] + 1) / 2)
