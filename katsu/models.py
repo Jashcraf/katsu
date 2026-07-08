@@ -34,30 +34,43 @@ def _digest_variables(variable, params):
         raise ValueError(f"Invalid variable type: {type(variable)}")
 
 
-class dLuxMuellerMatrix(zdx.Base):
+class MuellerMatrix(zdx.Base):
     """Base class for differentiable Mueller matrix elements.
 
     Provides support for Python's matrix multiplication operator (`@`) to allow
     composing multiple optical elements into a single composite `MuellerMatrix`.
 
-    The key difference from `MuellerMatrix` is that subclasses store only the
-    *physical parameters* (e.g. ``fast_axis``, ``retardance``) as pytree leaves
-    and expose ``matrix`` as a computed ``@property``. The matrix is therefore
-    rebuilt from the current parameters every time it is accessed, which is what
-    makes these objects play nicely with zodiax: a
-    ``model.set("retarder.fast_axis", value)`` swaps the parameter leaf and the
-    next access of ``.matrix`` automatically reflects the update. (If ``matrix``
-    were a stored leaf, ``.set`` on a parameter would leave the cached matrix
-    stale.)
+    Parametric subclasses (e.g. ``LinearRetarder``) store only the *physical
+    parameters* (e.g. ``fast_axis``, ``retardance``) as pytree leaves and expose
+    ``matrix`` as a computed ``@property``. The matrix is therefore rebuilt from
+    the current parameters every time it is accessed, which is what makes these
+    objects play nicely with zodiax: a ``model.set("retarder.fast_axis", value)``
+    swaps the parameter leaf and the next access of ``.matrix`` automatically
+    reflects the update. (If ``matrix`` were a stored leaf, ``.set`` on a
+    parameter would leave the cached matrix stale.)
 
-    Subclasses must implement the ``matrix`` property.
+    A ``MuellerMatrix`` can also be constructed directly from an already-computed
+    matrix. This is what ``@`` returns when two elements are composed, so the
+    product of two optics is itself a ``MuellerMatrix`` (and can be composed
+    further or have its ``.matrix`` read). In that case the matrix is a stored
+    leaf rather than a computed property.
     """
+
+    _matrix: Any = None
+
+    def __init__(self, matrix=None):
+        # A directly-constructed MuellerMatrix (e.g. the product of two
+        # elements) stores its precomputed matrix here. Parametric subclasses
+        # leave this None and override the `matrix` property instead.
+        self._matrix = matrix
 
     @property
     def matrix(self):
-        raise NotImplementedError(
-            "Subclasses of dLuxMuellerMatrix must implement the `matrix` property."
-        )
+        if self._matrix is None:
+            raise NotImplementedError(
+                "Subclasses of MuellerMatrix must implement the `matrix` property."
+            )
+        return self._matrix
 
     def __matmul__(self, other):
         if hasattr(other, "matrix"):
@@ -77,248 +90,9 @@ class dLuxMuellerMatrix(zdx.Base):
             return other @ self.matrix
         else:
             return NotImplemented
-
-
-class MuellerMatrix(zdx.Base):
-    """Base class for all Mueller matrix elements.
-
-    Can also be used to wrap an arbitrary 4x4 Mueller matrix. Provides support
-    for Python's matrix multiplication operator (`@`) to allow composing
-    multiple optical elements into a single composite `MuellerMatrix`.
-
-    Generally variable elements should be specified as a boolean, list, or dict.
-    boolean: True means vary all free parameters, False means fix all free parameters
-    dict: dict of attributes to vary and explicitly specify if they are variable
-
-    internally, these are stored as a dictionary
-    """
-
-    matrix: Any
-    variable: bool or dict
-    shape: tuple or None
-    _n_params: int
-    _trainable: dict
-
-    def __init__(self, matrix, variable=False, shape=None):
-        """
-        Parameters
-        ----------
-        matrix : np.ndarray
-            The 4x4 Mueller matrix.
-        n_params : int, optional
-            The number of optimizeable parameters. Defaults to 0.
-        """
-        self.matrix = matrix
-        self.variable = variable
-        self.shape = shape
-        self._n_params = 0
-        self._trainable = {}
-
-    def __matmul__(self, other):
-        if hasattr(other, "matrix"):
-            return MuellerMatrix(self.matrix @ other.matrix)
-
-        # Handle jax arrays, numpy arrays, or other array-likes safely
-        # This will return a raw array, not a `MuellerMatrix`, so the type
-        # of the array to the right is maintained
-        elif hasattr(other, "shape") and len(getattr(other, "shape", ())) >= 1:
-            return self.matrix @ other
-
-        else:
-            return NotImplemented, "Unsupported operand type: " + str(type(other))
-
-    def __rmatmul__(self, other):
-        if hasattr(other, "shape") and len(getattr(other, "shape", ())) >= 1:
-            return other @ self.matrix
-        else:
-            return NotImplemented
-
-
-class LinearRetarder(MuellerMatrix):
-    """Homogeneous linear retarder.
-
-    Parameters
-    ----------
-    fast_axis : float
-        Fast-axis angle w.r.t. horizontal, in radians.
-    retardance : float
-        Retardance in radians.
-    variable : bool or list[bool]
-        Which parameters are free.  List order: ``[fast_axis, retardance]``.
-
-    Examples
-    --------
-    Free retardance only:
-
-    >>> LinearRetarder(fast_axis=0.0, retardance=np.pi / 2,
-    ...                variable=[False, True])
-
-    Both parameters free:
-
-    >>> LinearRetarder(fast_axis=0.0, retardance=np.pi / 2, variable=True)
-    """
-
-    # Typing required by zodiax/equinox
-    fast_axis: float or np.ndarray
-    retardance: float or np.ndarray
-
-    def __init__(self, fast_axis, retardance, variable=False, shape=None):
-
-        # These can be floats or ndarrays because katsu accounts for the difference in shape
-        self.fast_axis = fast_axis
-        self.retardance = retardance
-
-        # From MuellerMatrix
-        self.matrix = linear_retarder(self.fast_axis, self.retardance, shape=shape)
-        self.shape = shape
-
-        # Digest trainable parameters
-        self.variable = variable
-        self._trainable = _digest_variables(self.variable, ["fast_axis", "retardance"])
-        self._n_params = sum(self._trainable.values())
-
-    @classmethod
-    def as_quarter_wave_plate(cls, fast_axis, variable=False, shape=None):
-        """Quarter-wave plate (retardance = π/2). This also sets retardance to π/2, and
-        does not permit Tmin to be varied."""
-        if not isinstance(variable, bool):
-            if variable["retardance"]:
-                raise ValueError(
-                    "Retardance cannot be varied in a quarter-wave plate model"
-                )
-        else:
-            variable = {"fast_axis": variable}
-
-        return cls(
-            fast_axis=fast_axis, retardance=np.pi / 2, variable=variable, shape=shape
-        )
-
-    @classmethod
-    def as_half_wave_plate(cls, fast_axis, variable=False, shape=None):
-        """Half-wave plate (retardance = π). This also sets retardance to π, and
-        does not permit Tmin to be varied."""
-        if not isinstance(variable, bool):
-            if variable["retardance"]:
-                raise ValueError(
-                    "Retardance cannot be varied in a half-wave plate model"
-                )
-        else:
-            variable = {"fast_axis": variable}
-
-        return cls(
-            fast_axis=fast_axis, retardance=np.pi, variable=variable, shape=shape
-        )
-
-    def update(self, x):
-        """
-        Update the model parameters and matrix from the given vector `x`.
-
-        Parameters
-        ----------
-        x : array-like
-            The vector of parameters to update the model with.
-        """
-
-        # The following is syntactially unique to zodiax
-        # Collect the trainable parameter names and their values from x. The
-        # index into x counts only the trainable params, in declared order.
-        paths, values, j = [], [], 0
-        for param in self._trainable:
-            if self._trainable[param]:
-                paths.append(param)
-                values.append(x[j])
-                j += 1
-
-        # zodiax Base objects are immutable; .set() returns a NEW instance
-        new = self.set(paths, values)
-
-        # Rebuild the Mueller matrix from the updated parameters
-        new = new.set(
-            "matrix",
-            linear_retarder(new.fast_axis, new.retardance, shape=new.shape),
-        )
-        return new
 
 
 class LinearDiattenuator(MuellerMatrix):
-    """Homogeneous linear diattenuator (partial or ideal polarizer).
-
-    Parameters
-    ----------
-    transmission_axis : float
-        Transmission-axis angle w.r.t. horizontal, in radians.
-    Tmin : float
-        Transmission of the blocked state (0 for an ideal polarizer).
-    variable : bool or list[bool]
-        Which parameters are free.
-        List order: ``[transmission_axis, Tmin]``.
-    """
-
-    # Typing required by zodiax/equinox
-    transmission_axis: float
-    Tmin: float
-    _n_params: int
-
-    def __init__(self, transmission_axis, Tmin, variable=False, shape=None):
-        self.transmission_axis = float(transmission_axis)
-        self.Tmin = float(Tmin)
-
-        # from MuellerMatrix
-        self.matrix = linear_diattenuator(
-            self.transmission_axis, self.Tmin, shape=shape
-        )
-        self.shape = shape
-
-        # Digest trainable parameters
-        self.variable = variable
-        self._trainable = _digest_variables(
-            self.variable, ["transmission_axis", "Tmin"]
-        )
-        self._n_params = sum(self._trainable.values())
-
-    @classmethod
-    def as_polarizer(cls, transmission_axis, variable=False, shape=None):
-        """Ideal linear polarizer (Tmin = 0). This also sets Tmin to zero, and
-        does not permit Tmin to be varied."""
-        if not isinstance(variable, bool):
-            if variable["Tmin"]:
-                raise ValueError("Tmin cannot be varied in a polarizer model")
-        else:
-            variable = {"transmission_axis": variable}
-
-        return cls(transmission_axis, 0.0, variable=variable, shape=shape)
-
-    def update(self, x):
-        """
-        Update the model parameters and matrix from the given vector `x`.
-
-        Parameters
-        ----------
-        x : array-like
-            The vector of parameters to update the model with.
-        """
-
-        # The following is syntactially unique to zodiax
-        # Collect the trainable parameter names and their values from x. The
-        # index into x counts only the trainable params, in declared order.
-        paths, values, j = [], [], 0
-        for param in self._trainable:
-            if self._trainable[param]:
-                paths.append(param)
-                values.append(x[j])
-                j += 1
-
-        # zodiax Base objects are immutable; .set() returns a NEW instance
-        new = self.set(paths, values)
-
-        # Rebuild the Mueller matrix from the updated parameters
-        new = new.set(
-            "matrix",
-            linear_diattenuator(new.transmission_axis, new.Tmin, shape=new.shape),
-        )
-        return new
-
-class dLuxDiattenuator(dLuxMuellerMatrix):
     # Typing required by zodiax/equinox. Only the physical parameters are
     # leaves; `matrix` is computed from them (see the property below).
     transmission_axis: float or np.ndarray
@@ -338,8 +112,13 @@ class dLuxDiattenuator(dLuxMuellerMatrix):
             self.transmission_axis, self.Tmin, shape=self.shape
         )
 
+    @classmethod
+    def as_polarizer(cls, transmission_axis, shape=None):
+        """Ideal linear polarizer: a diattenuator with ``Tmin = 0``."""
+        return cls(transmission_axis, 0.0, shape=shape)
 
-class dLuxRetarder(dLuxMuellerMatrix):
+
+class LinearRetarder(MuellerMatrix):
     # Typing required by zodiax/equinox. Only the physical parameters are
     # leaves; `matrix` is computed from them (see the property below).
     fast_axis: float or np.ndarray
@@ -359,13 +138,23 @@ class dLuxRetarder(dLuxMuellerMatrix):
             self.fast_axis, self.retardance, shape=self.shape
         )
 
+    @classmethod
+    def as_quarter_wave_plate(cls, fast_axis, shape=None):
+        """Quarter-wave plate: a linear retarder with retardance ``pi / 2``."""
+        return cls(fast_axis, np.pi / 2, shape=shape)
 
-class dLuxModel(zdx.Base):
+    @classmethod
+    def as_half_wave_plate(cls, fast_axis, shape=None):
+        """Half-wave plate: a linear retarder with retardance ``pi``."""
+        return cls(fast_axis, np.pi, shape=shape)
+
+
+class Model(zdx.Base):
     layers: OrderedDict
 
     def __init__(self, layers):
 
-        # Use dLux helper to digest
+        # Digest the (name, optic) list into an ordered dict of layers
         self.layers = list2dictionary(layers, ordered=True)
 
     def __getattr__(self, key):
@@ -386,112 +175,4 @@ class dLuxModel(zdx.Base):
 
         return system_matrix @ stokes
 
-
-class Model(zdx.Base):
-    """Model fitting interface for polarimetry.
-
-    Parameters
-    ----------
-    optics_list : list of MuellerMatrix
-        The sequence of optical elements in the model.
-    data : np.ndarray, optional
-        Observed data to compare against in the forward model.
-    """
-
-    optics: list[MuellerMatrix]
-    data: np.ndarray
-    offsets: list[tuple[int, int]]
-    system_matrix: np.ndarray
-    _n_params: int
-    _fg_func: callable or None
-
-    def __init__(self, optics_list, data=None):
-        self.optics = optics_list
-        self.data = data
-        self._n_params = 0
-
-        # Calculate offsets for the flat parameter vector x
-        self.offsets = []
-        cursor = 0
-
-        # Build understanding of slices for parameter vector x
-        for optic in self.optics:
-            self.offsets.append((cursor, cursor + optic._n_params))
-            cursor += optic._n_params
-            self._n_params += optic._n_params
-
-        self._fg_func = None
-        self.system_matrix = np.eye(4)
-
-    def _update(self, x):
-        """Update the optics and full system matrix
-
-        Parameters
-        ----------
-        x : np.ndarray
-            The vector of all optimizeable parameters.
-
-        """
-        cursor = 0
-        system_matrix = np.eye(4)
-        new_optics = []
-
-        for optic in self.optics:
-            # Update optic variables. optic.update returns a NEW instance, so
-            # we must capture it rather than mutating in place.
-            if optic._n_params > 0:
-                optic = optic.update(x[cursor : cursor + optic._n_params])
-            cursor += optic._n_params
-            new_optics.append(optic)
-
-            # Update the system matrix
-            system_matrix = optic.matrix @ system_matrix
-
-        # Return a new Model with the updated optics and system matrix
-        return self.set(["optics", "system_matrix"], [new_optics, system_matrix])
-
-    def forward(self, x, stokes=None):
-        """Compute the forward model / objective function.
-
-        Parameters
-        ----------
-        x : np.ndarray
-            The vector of all optimizeable parameters.
-        stokes : np.ndarray, optional
-            The input Stokes vector. Defaults to [1, 0, 0, 0].
-
-        """
-        # Update the optics; _update returns a NEW Model instance
-        model = self._update(x)
-
-        if stokes is None:
-            stokes = np.array([1.0, 0.0, 0.0, 0.0])
-
-        # Multiply by stokes
-        final_stokes = model.system_matrix @ stokes
-
-        return final_stokes[..., 0]  # Return intensity observed
-
-    def compile_fg(self):
-        """Compute both the function value and its gradient.
-
-        Parameters
-        ----------
-        x : np.ndarray
-            The vector of all optimizeable parameters.
-        """
-        # compile _fg_function if not present
-        if self._fg_func is None:
-            try:
-                import jax
-                _fg = jax.value_and_grad(self.forward)
-
-
-            except ImportError:
-                raise ImportError(
-                    "JAX is required for gradient computation. "
-                    "Please install it or set the katsu backend to JAX."
-                )
-
-        return _fg 
 
