@@ -1,4 +1,5 @@
 import numpy as np
+from numbers import Integral
 
 class BackendShim:
     """A shim that allows a backend to be swapped at runtime.
@@ -7,7 +8,7 @@ class BackendShim:
 
     def __init__(self, src):
         self._srcmodule = src
- 
+
     def __getattr__(self, key):
         if key == "_srcmodule":
             return self._srcmodule
@@ -36,14 +37,101 @@ def set_backend_to_cupy():
 
     return
 
-def set_backend_to_jax(): 
+
+def set_backend_to_jax():
     """Convenience method to automatically configure katsu's backend to jax."""
     import jax as jax
 
+    # enable double precision - TODO: change with backend precision
     jax.config.update("jax_enable_x64", True)
     np._srcmodule = jax.numpy
 
     return
+
+
+def _coerce_real_dtype(precision):
+    """Return a concrete real floating dtype from a dtype-like value."""
+    if isinstance(precision, Integral) and not isinstance(precision, bool):
+        precision = f"float{precision}"
+
+    try:
+        dtype = np.dtype(precision)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("precision should be a real floating dtype.") from exc
+
+    if dtype.kind != "f":
+        raise ValueError("precision should be a real floating dtype.")
+
+    return dtype.type
+
+
+def _complex_dtype_for(real_dtype):
+    """Return the complex dtype associated with a real floating dtype."""
+    return np.result_type(real_dtype, 1j).type
+
+
+class Config(object):
+    """Global configuration of katsu. Taken from prysm.conf.py, which is MIT Licensed"""
+
+    def __init__(
+        self,
+        precision=64,
+    ):
+        """Create a new Config object.
+
+        Parameters
+        ----------
+        precision : dtype-like
+            Real floating dtype, or integer bit-depth such as 16, 32, or 64
+
+        """
+        self.chbackend_observers = []
+        self.precision = precision
+
+    @property
+    def precision(self):
+        """Precision used for computations.
+
+        Returns
+        -------
+        object
+            Real floating dtype
+            precision used
+
+        """
+        return self._precision
+
+    @property
+    def precision_complex(self):
+        """Precision used for complex array computations.
+
+        Returns
+        -------
+        object
+            Complex dtype associated with precision
+            precision used for complex arrays
+
+        """
+        return self._precision_complex
+
+    @precision.setter
+    def precision(self, precision):
+        """Adjust precision used by prysm.
+
+        Parameters
+        ----------
+        precision : dtype-like
+            Real floating dtype, or integer bit-depth such as 16, 32, or 64
+
+        Raises
+        ------
+        ValueError
+            if precision is not a real floating dtype
+
+        """
+        self._precision = _coerce_real_dtype(precision)
+        self._precision_complex = _complex_dtype_for(self._precision)
+
 
 def broadcast_kron(a, b):
     """broadcasted kronecker product of two N,M,...,2,2 arrays. Used for jones -> mueller conversion
@@ -68,7 +156,9 @@ def broadcast_kron(a, b):
         N,M,...,4,4 array
     """
 
-    return np.einsum('...ik,...jl', a, b).reshape([*a.shape[:-2],int(a.shape[-2]*b.shape[-2]),int(a.shape[-1]*b.shape[-1])])
+    return np.einsum("...ik,...jl", a, b).reshape(
+        [*a.shape[:-2], int(a.shape[-2] * b.shape[-2]), int(a.shape[-1] * b.shape[-1])]
+    )
 
 
 def broadcast_outer(a, b):
@@ -90,7 +180,7 @@ def broadcast_outer(a, b):
         outer product matrix
     """
 
-    return np.einsum('...i,...j->...ij', a, b)
+    return np.einsum("...i,...j->...ij", a, b)
 
 
 def condition_number(matrix):
@@ -111,13 +201,10 @@ def condition_number(matrix):
     minv = np.linalg.pinv(matrix)
 
     # compute maximum norm https://numpy.org/doc/stable/reference/generated/numpy.linalg.norm.html
-    norm = np.linalg.norm(matrix, ord=np.inf, axis=(-2,-1))
-    ninv = np.linalg.norm(minv, ord=np.inf, axis=(-2,-1))
+    norm = np.linalg.norm(matrix, ord=np.inf, axis=(-2, -1))
+    ninv = np.linalg.norm(minv, ord=np.inf, axis=(-2, -1))
 
     return norm * ninv
-
-
-M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
 
 
 def RMS_calculator(calibration_matrix):
@@ -135,16 +222,16 @@ def RMS_calculator(calibration_matrix):
     differences = []
     for i in range(0, 4):
         for j in range(0, 4):
-            differences.append(calibration_matrix[i, j]-M_identity[i, j])
+            differences.append(calibration_matrix[i, j] - M_identity[i, j])
 
     differences_squared = [x**2 for x in differences]
-    RMS = np.sqrt(sum(differences_squared)/16)
+    RMS = np.sqrt(sum(differences_squared) / 16)
     return RMS
 
 
 # Calculate the retardance error by standard error propogation using RMS in the matrix elements from calibration
 def propagated_error(M_R, RMS):
-    """Propogates error in the Mueller matrix to error in the extracted value of retardance. 
+    """Propogates error in the Mueller matrix to error in the extracted value of retardance.
     Assumes the RMS error is the same for all elements of the matrix.
 
     Parameters
@@ -155,8 +242,12 @@ def propagated_error(M_R, RMS):
         root mean square error of the Mueller matrix.
 
     Returns
-    ------- 
+    -------
         float, error in the extracted retardance value in radians.
     """
     x = np.trace(M_R)
-    return 2*RMS/np.sqrt(4*x-x**2) # Value in radians
+    return 2 * RMS / np.sqrt(4 * x - x**2)  # Value in radians
+
+
+M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+config = Config()
