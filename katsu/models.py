@@ -98,18 +98,20 @@ class LinearDiattenuator(MuellerMatrix):
     transmission_axis: float or np.ndarray
     Tmin: float or np.ndarray
     shape: tuple or None
+    offset: float
 
-    def __init__(self, transmission_axis, Tmin, shape=None):
+    def __init__(self, transmission_axis, Tmin, shape=None, offset=0.):
         # Do NOT cast to float(): keep values as-is so they stay traceable
         # under jax (jit/grad) and so array-valued parameters are supported.
         self.transmission_axis = transmission_axis
         self.Tmin = Tmin
         self.shape = shape
+        self.offset = offset
 
     @property
     def matrix(self):
         return linear_diattenuator(
-            self.transmission_axis, self.Tmin, shape=self.shape
+            self.transmission_axis + self.offset, self.Tmin, shape=self.shape
         )
 
     @classmethod
@@ -123,19 +125,25 @@ class LinearRetarder(MuellerMatrix):
     # leaves; `matrix` is computed from them (see the property below).
     fast_axis: float or np.ndarray
     retardance: float or np.ndarray
+    offset: float
     shape: tuple or None
 
-    def __init__(self, fast_axis, retardance, shape=None):
+    def __init__(self, fast_axis, retardance, shape=None, offset=0.):
         # These can be floats or ndarrays because katsu accounts for the
         # difference in shape.
+        self.offset = offset
         self.fast_axis = fast_axis
         self.retardance = retardance
         self.shape = shape
 
     @property
     def matrix(self):
+        # `offset` is applied here rather than folded into `fast_axis` at
+        # construction. Baking it in would make the axis a stored leaf that no
+        # longer tracks `offset`, so `.set("...offset", x)` would silently
+        # leave the matrix stale and hand back a zero gradient.
         return linear_retarder(
-            self.fast_axis, self.retardance, shape=self.shape
+            self.fast_axis + self.offset, self.retardance, shape=self.shape
         )
 
     @classmethod
@@ -168,7 +176,7 @@ class Model(zdx.Base):
         raise AttributeError(f"Model has no attribute '{key}'")
 
     # Does forward modeling things
-    def forward(self, stokes):
+    def forward(self, stokes=np.array([1., 0., 0., 0.])):
         system_matrix = np.eye(4)
         for layer in list(self.layers.values()):
             system_matrix = layer @ system_matrix
