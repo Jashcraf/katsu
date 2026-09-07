@@ -1,34 +1,54 @@
-from .mueller import linear_retarder, linear_polarizer, linear_diattenuator, _empty_mueller, decompose_retarder, wollaston
-from .katsu_math import broadcast_kron, broadcast_outer, condition_number, RMS_calculator, propagated_error, np
+from .mueller import (
+        linear_retarder,
+        linear_polarizer,
+        linear_diattenuator,
+        decompose_retarder,
+        wollaston
+)
+
+from .katsu_math import (
+    broadcast_kron,
+    condition_number,
+    RMS_calculator,
+    propagated_error,
+    np
+)
+
 from scipy.optimize import curve_fit, minimize
 
 # Define the identity matrix and other matrices which are useful for the Mueller calculus
-M_identity = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+M_identity = np.array([[1, 0, 0, 0],
+                       [0, 1, 0, 0],
+                       [0, 0, 1, 0],
+                       [0, 0, 0, 1]])
 A = np.array([1, 0, 0, 0])
 B = np.array([[1], [0], [0], [0]])
 C = np.array([0, 1, 0, 0])
 
 
-def drrp_data_reduction_matrix(Mg, Ma, invert=False):
+def drrp_data_reduction_matrix(generator_matrix, analyzer_matrix, invert=False):
     """Compute the polarimetric data reduction matrix from a generator and analyzer matrix
+
+    The matrices must have the Mueller matrix in the last two dimensions.
+    This calculation broadcasts the calculation over every other dimension
 
     Parameters
     ----------
-    Mg : numpy.ndarray
+    generator_matrix : ndarray
         polarization state generator matrix
-    Ma : numpy.ndarray
+    analyzer_matrix : ndarray
         polarization state analyzer matrix
     invert : bool, optional
         whether to return the pseudo-inverse of the matrix, by default False
 
     Returns
     -------
-    numpy.ndarray
+    ndarray
         polarimetric data reduction matrix
     """
 
-    PSA = Ma[..., 0, :]
-    PSG = Mg[..., :, 0]
+    PSA = analyzer_matrix[..., 0, :]
+    PSG = generator_matrix[..., :, 0]
 
     # polarimetric data reduction matrix, flatten Mueller matrix dimension
     Wmat = broadcast_kron(PSA[..., np.newaxis], PSG[..., np.newaxis])
@@ -39,6 +59,41 @@ def drrp_data_reduction_matrix(Mg, Ma, invert=False):
     
     else:
         return Wmat
+
+
+class DRRPDataReduction:
+    def __init__(self, generator_matrix, analyzer_matrix):
+        self.generator_matrix = generator_matrix
+        self.analyzer_matrix = analyzer_matrix
+        self.Wmat = drrp_data_reduction_matrix(generator_matrix, analyzer_matrix)
+        self.Winv = np.linalg.pinv(self.Wmat)
+
+    @classmethod
+    def from_psg_psa_angles(cls, psg_angles, psa_angles, psg_ret, psa_ret):
+        psg_qwp = linear_retarder(psg_angles, psg_ret)
+        psg_hpl = linear_diattenuator(0, Tmin=0)
+        psa_qwp = linear_retarder(psa_angles, psa_ret)
+        psa_hpl = linear_diattenuator(0, Tmin=0)
+
+        generator_matrix = psg_qwp @ psg_hpl
+        analyzer_matrix = psa_hpl @ psa_qwp
+
+        return cls(generator_matrix, analyzer_matrix)
+    
+    def simulate_power(self, mueller_matrix, stokes=np.array([1., 0., 0., 0.])):
+        """simulates the power given `mueller_matrix` in between
+        the PSG and PSA
+
+        Parameters
+        ----------
+        mueller_matrix : ndarray 
+            mueller matrix in the sample plane in the DRRP
+        """
+        mueller = self.analyzer_matrix @ mueller_matrix @ self.generator_matrix
+        return mueller @ stokes
+
+
+
 
 
 def full_mueller_polarimetry(thetas, power, angular_increment,
